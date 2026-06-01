@@ -2,7 +2,7 @@ name: Sync to Hugging Face Hub
 
 on:
   push:
-    branches: [ main ] # Ganti 'master' jika branch utama Anda bernama master
+    branches: [ warga ]
   workflow_dispatch:
 
 jobs:
