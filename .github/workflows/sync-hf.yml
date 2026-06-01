@@ -10,10 +10,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          lfs: true
-      - name: Push to HF
+
+      - name: Clean and Push to HF
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: git push https://shimishimiya:${HF_TOKEN}@huggingface.co/spaces/shimishimiya/aduaja-web HEAD:main -f
+        run: |
+          # 1. Cari dan hapus semua file dokumen .docx yang bikin berat
+          find . -name "*.docx" -type f -delete
+          
+          # 2. Hapus folder .git bawaan GitHub agar sejarah file besar musnah di server temporary
+          rm -rf .git
+          
+          # 3. Buat inisialisasi Git baru yang sangat bersih di dalam robot mesin
+          git init -b main
+          git config user.name "shimishimiya"
+          git config user.email "shimishimiya@users.noreply.github.com"
+          
+          # 4. Masukkan seluruh file kode murni aplikasi
+          git add .
+          git commit -m "Deploy fresh and clean build to Hugging Face"
+          
+          # 5. Paksa push versi super ringan ini ke Hugging Face
+          git push https://shimishimiya:${HF_TOKEN}@huggingface.co/spaces/shimishimiya/aduaja-web main -f
