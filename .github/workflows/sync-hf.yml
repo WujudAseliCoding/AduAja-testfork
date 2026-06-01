@@ -17,4 +17,4 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         # UBAH username-anda dan nama-space-anda DI BAWAH INI
-        run: git push https://username-anda:${HF_TOKEN}@huggingface.co/spaces/username-anda/nama-space-anda main -f
+        run: git push https://shimishimiya:${HF_TOKEN}@huggingface.co/spaces/shimishimiya/aduaja-web main -f
