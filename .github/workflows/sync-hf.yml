@@ -10,10 +10,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          lfs: true
-      - name: Push to HF
+
+      - name: Clean, Setup LFS and Push to HF
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: git push https://shimishimiya:${HF_TOKEN}@huggingface.co/spaces/shimishimiya/aduaja-web HEAD:main -f
+        run: |
+          # 1. Hapus file docx berat dan folder foto sampah hasil test lokal
+          find . -name "*.docx" -type f -delete
+          rm -rf uploads
+          
+          # 2. Hapus folder .git lama untuk membuat riwayat baru yang segar
+          rm -rf .git
+          
+          # 3. Inisialisasi Git baru di branch main
+          git init -b main
+          git config user.name "shimishimiya"
+          git config user.email "shimishimiya@users.noreply.github.com"
+          
+          # 4. AKTIFKAN GIT LFS (Kunci utama menjinakkan sensor biner Hugging Face)
+          git lfs install
+          git lfs track "*.png"
+          git lfs track "*.jpg"
+          git lfs track "*.jpeg"
+          git lfs track "*.gif"
+          
+          # 5. Tambahkan semua file kode murni dan commit
+          git add .
+          git commit -m "Deploy fresh build with LFS tracking to Hugging Face"
+          
+          # 6. Paksa push ke Hugging Face
+          git push https://shimishimiya:${HF_TOKEN}@huggingface.co/spaces/shimishimiya/aduaja-web main -f
