@@ -1,9 +1,11 @@
 package com.plr.aduaja.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
+@JsonIgnoreProperties({"parentReport", "childReport"})
 @Table(name = "merge_records")
 public class MergeRecord extends BaseEntity {
 
@@ -27,6 +29,9 @@ public class MergeRecord extends BaseEntity {
     @Column(name = "merge_reason", columnDefinition = "TEXT")
     private String mergeReason;
 
+    @Column(name = "previous_child_status", length = 50)
+    private String previousChildStatus;
+
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
@@ -47,6 +52,9 @@ public class MergeRecord extends BaseEntity {
 
     public String getMergeReason() { return mergeReason; }
     public void setMergeReason(String mergeReason) { this.mergeReason = mergeReason; }
+
+    public String getPreviousChildStatus() { return previousChildStatus; }
+    public void setPreviousChildStatus(String previousChildStatus) { this.previousChildStatus = previousChildStatus; }
 
     public Boolean getIsActive() { return isActive; }
     public void setIsActive(Boolean isActive) { this.isActive = isActive; }

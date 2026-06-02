@@ -114,5 +114,53 @@
           input.min = currentIso;
         }
       });
+
+    initLightbox();
   });
+
+  function initLightbox() {
+    var overlay = document.createElement("div");
+    overlay.className = "aduaja-lightbox";
+    overlay.innerHTML =
+      '<button class="close-btn">&times;</button><img src="" alt="Preview" />';
+    document.body.appendChild(overlay);
+
+    var img = overlay.querySelector("img");
+    var closeBtn = overlay.querySelector(".close-btn");
+
+    function open(src) {
+      img.src = src;
+      overlay.classList.add("open");
+      document.body.style.overflow = "hidden";
+    }
+
+    function close() {
+      overlay.classList.remove("open");
+      document.body.style.overflow = "";
+      setTimeout(function () {
+        img.src = "";
+      }, 300);
+    }
+
+    overlay.addEventListener("click", function (e) {
+      if (e.target === overlay || e.target === closeBtn) {
+        close();
+      }
+    });
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && overlay.classList.contains("open")) {
+        close();
+      }
+    });
+
+    document.addEventListener("click", function (e) {
+      var target = e.target.closest("[data-lightbox]");
+      if (target) {
+        e.preventDefault();
+        var src = target.getAttribute("src") || target.getAttribute("data-lightbox");
+        if (src) open(src);
+      }
+    });
+  }
 })();

@@ -104,6 +104,12 @@
                           <i data-lucide="git-merge" class="w-3 h-3"></i>
                           Tergabung (<span th:text="${laporan.mergeCount}">2</span> tiket)
                         </span>
+                        <!-- Potential duplicate badge -->
+                        <span th:if="${laporan.hasPotentialDuplicate}"
+                              class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 border border-purple-200 font-semibold w-fit">
+                          <i data-lucide="copy" class="w-3 h-3"></i>
+                          Potensi Duplikat
+                        </span>
                       </div>
                     </td>
                     <td class="px-4 py-3">
@@ -150,6 +156,33 @@
 
           <div id="noResults" class="hidden py-8 text-center text-gray-500">
             Tidak ada laporan yang sesuai dengan filter/pencarian.
+          </div>
+
+          <!-- FR-ADM-03: Pagination Controls -->
+          <div th:if="${totalPages > 1}" class="flex items-center justify-between pt-4">
+            <div class="text-sm text-gray-600">
+              Menampilkan <span th:text="${#lists.size(queueReports)}"></span> dari <span th:text="${totalItems}"></span> laporan
+            </div>
+            <div class="flex gap-1">
+              <a th:if="${currentPage > 1}"
+                 th:href="@{/admin/laporan-queue(page=${currentPage - 1}, size=${pageSize})}"
+                 class="px-3 py-1.5 border rounded text-sm hover:bg-gray-50">
+                Sebelumnya
+              </a>
+              <span th:each="p : ${#numbers.sequence(1, totalPages)}"
+                    th:if="${p >= currentPage - 2 and p <= currentPage + 2}"
+                    class="px-3 py-1.5 border rounded text-sm"
+                    th:classappend="${p == currentPage} ? 'bg-blue-600 text-white border-blue-600' : 'hover:bg-gray-50'">
+                <a th:if="${p != currentPage}" th:href="@{/admin/laporan-queue(page=${p}, size=${pageSize})}"
+                   th:text="${p}"></a>
+                <span th:if="${p == currentPage}" th:text="${p}"></span>
+              </span>
+              <a th:if="${currentPage < totalPages}"
+                 th:href="@{/admin/laporan-queue(page=${currentPage + 1}, size=${pageSize})}"
+                 class="px-3 py-1.5 border rounded text-sm hover:bg-gray-50">
+                Selanjutnya
+              </a>
+            </div>
           </div>
         </div>
       </div>

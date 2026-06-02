@@ -87,8 +87,8 @@ public class ReportApiController {
     @GetMapping("/count")
     public ResponseEntity<Map<String, Long>> getReportCounts() {
         Map<String, Long> counts = Map.of(
-                "menunggu_validasi", reportService.countByStatus(ReportStatus.MENUNGGU_VALIDASI),
-                "divalidasi", reportService.countByStatus(ReportStatus.DIVALIDASI),
+                "menunggu_verifikasi", reportService.countByStatus(ReportStatus.MENUNGGU_VERIFIKASI),
+                "diterima", reportService.countByStatus(ReportStatus.DITERIMA),
                 "ditugaskan", reportService.countByStatus(ReportStatus.DITUGASKAN),
                 "selesai", reportService.countByStatus(ReportStatus.SELESAI),
                 "sengketa", reportService.countByStatus(ReportStatus.SENGKETA)

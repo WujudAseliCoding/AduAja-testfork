@@ -34,7 +34,7 @@ public class TaskEvidence extends BaseEntity {
     private LocalDateTime takenAt = LocalDateTime.now();
 
     public enum EvidenceType {
-        SEBELUM, SESUDAH
+        SEBELUM, SESUDAH, LAPOR_BALIK
     }
 
     public String getEvidenceId() { return evidenceId; }

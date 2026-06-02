@@ -1,10 +1,12 @@
 package com.plr.aduaja.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "dispositions")
+@JsonIgnoreProperties({"report"})
 public class Disposition extends BaseEntity {
 
     @Id

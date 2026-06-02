@@ -62,6 +62,7 @@
     <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6" x-data="reportForm()" x-init="initMap()">
       <form th:action="@{/warga/create-report}" th:object="${createReportDTO}" method="post" class="space-y-6">
         <input type="hidden" name="photoBase64" id="photoBase64Input" />
+        <input type="hidden" name="photoTakenAt" id="photoTakenAtInput" />
         <input type="hidden" name="regionId" id="regionIdInput" />
 
         <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
@@ -487,6 +488,7 @@
         photoUrl: '', photoBase64: '',
         parentScope: null,
         _photoTimestamp: null,
+        _photoTimestampISO: null,
         _photoLat: null, _photoLng: null,
         _zoomBadgeTimer: null,
         _pinch: { active: false, startDist: 0, startZoom: 1 }
@@ -673,6 +675,7 @@
 
         // FR-WRG-10: Timestamp saat foto diambil
         camState._photoTimestamp = new Date().toLocaleString('id-ID');
+        camState._photoTimestampISO = new Date().toISOString();
 
         // FR-WRG-10: Ambil GPS otomatis saat foto diambil
         if (navigator.geolocation) {
@@ -715,6 +718,8 @@
           camState.parentScope.photoTaken  = true;
           const input = document.getElementById('photoBase64Input');
           if (input) input.value = camState.photoBase64;
+          const tsInput = document.getElementById('photoTakenAtInput');
+          if (tsInput) tsInput.value = camState._photoTimestampISO || '';
         }
         stopCamera();
       }

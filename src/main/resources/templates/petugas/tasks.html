@@ -16,15 +16,32 @@
 
   <div layout:fragment="content" class="min-h-screen bg-gray-50" x-data="{ 
     activeTab: 'new', 
-    sortBy: 'sla', 
-    lastRefresh: new Date().toLocaleTimeString(), 
-    isOnline: navigator.onLine, 
-    offlineQueue: 0, 
+    filterCategory: 'all',
+    sortBy: 'sla',
+    searchQuery: '',
+    isOnline: navigator.onLine,
+    lastRefresh: new Date().toLocaleTimeString('id-ID'),
     nextRefresh: 900,
+    offlineQueue: 0,
     sortCards(containerId) {
       const container = document.getElementById(containerId);
       if (!container) return;
       const cards = Array.from(container.querySelectorAll('[data-sort-sla]'));
+      const q = this.searchQuery.toLowerCase();
+      
+      // First apply filter & search
+      cards.forEach(c => {
+        const textContent = c.textContent.toLowerCase();
+        const matchesCat = this.filterCategory === 'all' || c.dataset.category === this.filterCategory;
+        const matchesQuery = q === '' || textContent.includes(q);
+        if (matchesCat && matchesQuery) {
+          c.style.display = 'block';
+        } else {
+          c.style.display = 'none';
+        }
+      });
+      
+      // Then apply sort
       cards.sort((a, b) => {
         if (this.sortBy === 'sla') {
           return parseFloat(a.dataset.sortSla) - parseFloat(b.dataset.sortSla);
@@ -45,7 +62,9 @@
     setInterval(() => { if (nextRefresh > 0) nextRefresh--; }, 1000);
     window.addEventListener('online', () => isOnline = true);
     window.addEventListener('offline', () => isOnline = false);
-    $watch('sortBy', () => { sortCards('sort-new'); sortCards('sort-pending'); });
+    $watch('sortBy', () => { sortCards('sort-new'); sortCards('sort-progress'); sortCards('sort-pending'); });
+    $watch('filterCategory', () => { sortCards('sort-new'); sortCards('sort-progress'); sortCards('sort-pending'); });
+    $watch('searchQuery', () => { sortCards('sort-new'); sortCards('sort-progress'); sortCards('sort-pending'); });
   ">
     <div class="bg-blue-600 text-white px-4 sm:px-6 py-4 sticky top-0 z-10 shadow-md">
       <div class="max-w-4xl mx-auto">
@@ -71,15 +90,74 @@
             </a>
             <h2 class="text-xl font-semibold">Daftar Tugas</h2>
           </div>
-          <!-- FR-PTG-31: Indikator status koneksi -->
-          <div class="flex items-center gap-2 text-xs" :class="isOnline ? 'text-blue-100' : 'text-red-200'">
-            <div class="w-2 h-2 rounded-full" :class="isOnline ? 'bg-green-400' : 'bg-red-400 animate-pulse'"></div>
-            <span x-text="isOnline ? 'Online' : 'Offline'"></span>
-            <span x-show="offlineQueue > 0" class="ml-1 px-1.5 py-0.5 bg-yellow-500 text-yellow-900 rounded font-bold" x-text="offlineQueue + ' antrian'"></span>
+          <!-- Indikator status koneksi -->
+          <div class="flex items-center gap-4">
+            
+            <!-- NOTIFIKASI COMPONENT -->
+            <div th:data-uid="${session.userId}" x-data="{
+              open: false,
+              notifications: [],
+              unreadCount: 0,
+              userId: $el.dataset.uid,
+              init() {
+                this.fetchNotif();
+                setInterval(() => this.fetchNotif(), 60000);
+              },
+              fetchNotif() {
+                fetch('/api/notifications/user/' + this.userId)
+                  .then(r => r.json())
+                  .then(d => {
+                    if (Array.isArray(d)) {
+                      this.notifications = d;
+                      this.unreadCount = d.filter(n => !n.isRead).length;
+                    }
+                  }).catch(e => console.error(e));
+              },
+              markAsRead(id) {
+                fetch('/api/notifications/' + id + '/read', {method: 'POST'})
+                  .then(() => this.fetchNotif());
+              },
+              markAllAsRead() {
+                fetch('/api/notifications/user/' + this.userId + '/read-all', {method: 'POST'})
+                  .then(() => this.fetchNotif());
+              }
+            }" class="relative">
+              <button @click="open = !open" class="relative p-1 text-blue-200 hover:text-white transition-colors">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                <span x-show="unreadCount > 0" class="absolute top-0 right-0 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-red-500 ring-2 ring-blue-600"></span>
+              </button>
+              
+              <div x-show="open" @click.away="open = false" x-cloak class="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg py-1 z-50 ring-1 ring-black ring-opacity-5 text-left">
+                <div class="px-4 py-3 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-lg">
+                  <h3 class="text-sm font-semibold text-gray-900">Notifikasi</h3>
+                  <button x-show="notifications.length > 0" @click="markAllAsRead" class="text-xs text-blue-600 hover:text-blue-800 font-medium">Tandai dibaca</button>
+                </div>
+                <div class="max-h-80 overflow-y-auto">
+                  <template x-for="notif in notifications" :key="notif.notificationId">
+                    <div @click="markAsRead(notif.notificationId)" :class="{'bg-blue-50/50': !notif.isRead, 'bg-white': notif.isRead}" class="px-4 py-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors text-gray-900">
+                      <p class="text-sm font-semibold text-gray-900" x-text="notif.title"></p>
+                      <p class="text-xs text-gray-600 mt-1 leading-relaxed" x-text="notif.messageText"></p>
+                      <p class="text-[10px] text-gray-400 mt-2" x-text="new Date(notif.sentAt).toLocaleString('id-ID')"></p>
+                    </div>
+                  </template>
+                  <div x-show="notifications.length === 0" class="px-4 py-8 text-center">
+                    <p class="text-sm text-gray-500">Belum ada notifikasi</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2 text-xs" :class="isOnline ? 'text-blue-100' : 'text-red-200'">
+              <div class="w-2 h-2 rounded-full" :class="isOnline ? 'bg-green-400' : 'bg-red-400 animate-pulse'"></div>
+              <span x-text="isOnline ? 'Online' : 'Offline'"></span>
+              <span x-show="offlineQueue > 0" class="ml-1 px-1.5 py-0.5 bg-yellow-500 text-yellow-900 rounded font-bold" x-text="offlineQueue + ' antrian'"></span>
+            </div>
           </div>
         </div>
         
-        <!-- FR-PTG-13: Indikator auto-refresh -->
+        <!-- Indikator auto-refresh -->
         <div class="flex items-center justify-between text-xs text-blue-200 mb-3">
           <span x-text="'Terakhir diperbarui: ' + lastRefresh"></span>
           <span x-show="isOnline">Auto-refresh: <span x-text="Math.floor(nextRefresh / 60) + ':' + String(nextRefresh % 60).padStart(2, '0')"></span></span>
@@ -89,6 +167,7 @@
           <input
             type="text"
             name="search"
+            x-model="searchQuery"
             placeholder="Cari tugas, lokasi, atau pelapor..."
             class="w-full pl-10 pr-4 py-2.5 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-300"
           />
@@ -109,16 +188,16 @@
       </div>
     </div>
 
-    <!-- FR-PTG-10: Sorting UI & FR-PTG-31: Offline Banner -->
+    <!-- Sorting UI & Offline Banner -->
     <div class="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
       <div class="max-w-4xl mx-auto">
-        <!-- FR-PTG-31: Banner Offline & Antrian Sinkronisasi -->
+        <!-- Banner Offline & Antrian Sinkronisasi -->
         <div x-show="!isOnline" x-cloak class="mb-3 bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-start gap-3">
           <svg class="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
           <div class="flex-1">
-            <p class="text-sm font-medium text-yellow-800">Mode Offline Aktif (FR-PTG-31)</p>
+            <p class="text-sm font-medium text-yellow-800">Mode Offline Aktif</p>
             <p class="text-xs text-yellow-700 mt-1">Perubahan yang Anda lakukan akan disimpan secara lokal. Data akan disinkronkan saat koneksi kembali tersedia.</p>
             <template x-if="offlineQueue > 0">
               <div class="mt-2 flex items-center gap-2">
@@ -130,22 +209,25 @@
         </div>
 
         <div class="flex gap-2 overflow-x-auto">
+          <!-- Filter Kategori -->
           <select
-            x-model="sortBy"
+            x-model="filterCategory"
             class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            name="filterCategory"
           >
             <option value="all">Semua Kategori</option>
             <option value="Kerusakan Jalan/Infrastruktur">Kerusakan Jalan/Infrastruktur</option>
             <option value="Fasilitas Penerangan Jalan">Fasilitas Penerangan Jalan</option>
             <option value="Pemeliharaan Taman/Ruang Publik">Pemeliharaan Taman/Ruang Publik</option>
+            <option value="Infrastruktur Drainase & Banjir">Infrastruktur Drainase & Banjir</option>
             <option value="Penanganan Kebersihan/Sampah">Penanganan Kebersihan/Sampah</option>
+            <option value="Gangguan Ketertiban Umum">Gangguan Ketertiban Umum</option>
+            <option value="Lainnya">Lainnya</option>
           </select>
-          <!-- FR-PTG-10: Sorting Prioritas SLA & Jarak -->
+
+          <!-- Sorting -->
           <select
             x-model="sortBy"
             class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            name="sortBy"
           >
             <option value="sla">Prioritas SLA (Terdekat)</option>
             <option value="distance">Jarak Terdekat</option>
@@ -222,7 +304,7 @@
           th:each="task : ${tasksNew}"
           th:with="priorityLabel=${task['priority'] == 'critical' ? 'Kritis' : task['priority'] == 'high' ? 'Tinggi' : task['priority'] == 'medium' ? 'Sedang' : 'Rendah'}, priorityClass=${task['priority'] == 'critical' ? 'bg-red-100 text-red-800 border-red-200' : task['priority'] == 'high' ? 'bg-orange-100 text-orange-800 border-orange-200' : task['priority'] == 'medium' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 'bg-green-100 text-green-800 border-green-200'}"
           class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow"
-          th:attr="data-sort-sla=${task['rawSlaRemaining']}, data-sort-distance=${task['rawDistance']}, data-sort-date=${task['reportDate']}"
+          th:attr="data-sort-sla=${task['rawSlaRemaining']}, data-sort-distance=${task['rawDistance']}, data-sort-date=${task['rawReportDate']}, data-category=${task['category']}"
         >
           <a th:href="@{/petugas/task-detail(id=${task['id']})}" class="block">
             <div class="flex items-start justify-between mb-2">
@@ -350,10 +432,12 @@
         >
           <p class="text-gray-500">Tidak ada tugas sedang dikerjakan</p>
         </div>
+        <div id="sort-progress" class="space-y-3">
         <div
           th:each="task : ${tasksInProgress}"
           th:with="priorityLabel=${task['priority'] == 'critical' ? 'Kritis' : task['priority'] == 'high' ? 'Tinggi' : task['priority'] == 'medium' ? 'Sedang' : 'Rendah'}, priorityClass=${task['priority'] == 'critical' ? 'bg-red-100 text-red-800 border-red-200' : task['priority'] == 'high' ? 'bg-orange-100 text-orange-800 border-orange-200' : task['priority'] == 'medium' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 'bg-green-100 text-green-800 border-green-200'}"
           class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow"
+          th:attr="data-sort-sla=${task['rawSlaRemaining']}, data-sort-distance=${task['rawDistance']}, data-sort-date=${task['rawReportDate']}, data-category=${task['category']}"
         >
           <a th:href="@{/petugas/task-detail(id=${task['id']})}" class="block">
             <div class="flex items-start justify-between mb-2">
@@ -404,6 +488,7 @@
             </div>
           </a>
         </div>
+        </div>
       </section>
 
       <section x-show="activeTab === 'pending'" x-cloak>
@@ -415,7 +500,7 @@
           th:each="task : ${tasksPending}"
           th:with="priorityLabel=${task['priority'] == 'critical' ? 'Kritis' : task['priority'] == 'high' ? 'Tinggi' : task['priority'] == 'medium' ? 'Sedang' : 'Rendah'}, priorityClass=${task['priority'] == 'critical' ? 'bg-red-100 text-red-800 border-red-200' : task['priority'] == 'high' ? 'bg-orange-100 text-orange-800 border-orange-200' : task['priority'] == 'medium' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 'bg-green-100 text-green-800 border-green-200'}"
           class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow"
-          th:attr="data-sort-sla=${task['rawSlaRemaining']}, data-sort-distance=${task['rawDistance']}, data-sort-date=${task['reportDate']}"
+          th:attr="data-sort-sla=${task['rawSlaRemaining']}, data-sort-distance=${task['rawDistance']}, data-sort-date=${task['rawReportDate']}, data-category=${task['category']}"
         >
           <a th:href="@{/petugas/task-detail(id=${task['id']})}" class="block">
             <div class="flex items-start justify-between mb-2">

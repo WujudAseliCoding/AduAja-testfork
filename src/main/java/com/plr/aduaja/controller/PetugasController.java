@@ -14,7 +14,10 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import com.plr.aduaja.dto.ResetPasswordDTO;
 
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -58,6 +61,15 @@ public class PetugasController {
     @Autowired
     private AuditLogRepository auditLogRepository;
 
+    @Autowired
+    private OtpService otpService;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private SupabaseStorageService supabaseStorageService;
+
     @GetMapping("/petugas/home")
     public String petugasHome() {
         return "redirect:/petugas/dashboard";
@@ -84,7 +96,7 @@ public class PetugasController {
             redirectAttributes.addFlashAttribute("error", "Konfirmasi password tidak cocok.");
             return "redirect:/petugas/change-password";
         }
-        
+
         try {
             userService.changePassword(userId, newPassword);
             session.removeAttribute("forceChangePasswordUserId");
@@ -95,6 +107,93 @@ public class PetugasController {
             return "redirect:/petugas/change-password";
         }
     }
+
+    // ==========================================
+    // GET /petugas/forgot-password
+    // ==========================================
+    @GetMapping("/petugas/forgot-password")
+    public String forgotPasswordPage(Model model) {
+        model.addAttribute("step", "email");
+        return "petugas/forgot-password";
+    }
+
+    // ==========================================
+    // POST /petugas/forgot-password
+    // ==========================================
+    @PostMapping("/petugas/forgot-password")
+    public String forgotPasswordRequest(
+            @RequestParam("email") String email,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Optional<User> userOpt = userService.findByEmail(email.trim());
+            if (userOpt.isEmpty()) {
+                redirectAttributes.addFlashAttribute("success",
+                    "Jika email terdaftar, kode OTP telah dikirim. Masukkan kode OTP di bawah.");
+                return "redirect:/petugas/forgot-password/verify?email=" + email;
+            }
+            otpService.generateOtpForPasswordReset(email.trim());
+            redirectAttributes.addFlashAttribute("success",
+                "Kode OTP telah dikirim. Masukkan kode OTP untuk melanjutkan.");
+            return "redirect:/petugas/forgot-password/verify?email=" + email;
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Gagal mengirim OTP: " + e.getMessage());
+            return "redirect:/petugas/forgot-password";
+        }
+    }
+
+    // ==========================================
+    // GET /petugas/forgot-password/verify
+    // ==========================================
+    @GetMapping("/petugas/forgot-password/verify")
+    public String forgotPasswordVerifyPage(
+            @RequestParam("email") String email,
+            Model model) {
+        model.addAttribute("email", email);
+        model.addAttribute("resetDTO", new ResetPasswordDTO());
+        return "petugas/forgot-password-verify";
+    }
+
+    // ==========================================
+    // POST /petugas/forgot-password/verify
+    // ==========================================
+    @PostMapping("/petugas/forgot-password/verify")
+    public String forgotPasswordVerify(
+            @RequestParam("email") String email,
+            @RequestParam("otpCode") String otpCode,
+            @RequestParam("newPassword") String newPassword,
+            @RequestParam("confirmNewPassword") String confirmNewPassword,
+            RedirectAttributes redirectAttributes) {
+        if (!newPassword.equals(confirmNewPassword)) {
+            redirectAttributes.addFlashAttribute("error", "Password baru dan konfirmasi tidak cocok.");
+            return "redirect:/petugas/forgot-password/verify?email=" + email;
+        }
+        if (newPassword.length() < 8) {
+            redirectAttributes.addFlashAttribute("error", "Password minimal 8 karakter.");
+            return "redirect:/petugas/forgot-password/verify?email=" + email;
+        }
+        try {
+            Optional<User> userOpt = userService.findByEmail(email.trim());
+            if (userOpt.isEmpty()) {
+                redirectAttributes.addFlashAttribute("error", "Email tidak ditemukan.");
+                return "redirect:/petugas/forgot-password";
+            }
+            User user = userOpt.get();
+            boolean valid = otpService.verifyOtp(user.getUserId(), otpCode);
+            if (!valid) {
+                redirectAttributes.addFlashAttribute("error", "Kode OTP tidak valid atau sudah kadaluarsa.");
+                return "redirect:/petugas/forgot-password/verify?email=" + email;
+            }
+            user.setPasswordHash(passwordEncoder.encode(newPassword));
+            userService.updateUser(user);
+            redirectAttributes.addFlashAttribute("success",
+                "Password berhasil direset! Silakan login dengan password baru.");
+            return "redirect:/petugas/login";
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Gagal reset password: " + e.getMessage());
+            return "redirect:/petugas/forgot-password/verify?email=" + email;
+        }
+    }
+
 
     // ==========================================
     // POST /petugas/dashboard — Aksi absensi (check-in/out/break/resume)
@@ -108,8 +207,10 @@ public class PetugasController {
             @RequestParam(value = "longitude", required = false) java.math.BigDecimal longitude,
             @RequestParam(value = "deviceInfo", required = false) String deviceInfo,
             HttpSession session,
+            jakarta.servlet.http.HttpServletRequest request,
             RedirectAttributes redirectAttributes
     ) {
+        if (session.getAttribute("forceChangePasswordUserId") != null) return "redirect:/petugas/change-password";
         String userId = ControllerHelper.requireRole(session, "PETUGAS");
         if (userId == null) return "redirect:/petugas/login";
 
@@ -117,9 +218,24 @@ public class PetugasController {
             if (checkIn != null && checkIn) {
                 // FIX-4: FR-PTG-08 — Validasi geofencing di backend sebelum check-in
                 try {
+                    double centerLat = DINAS_CENTER_LAT;
+                    double centerLon = DINAS_CENTER_LON;
+                    User officer = userService.findById(userId).orElse(null);
+                    if (officer != null && officer.getAgency() != null) {
+                        Agency agency = officer.getAgency();
+                        if (agency.getLatitude() != null && agency.getLongitude() != null) {
+                            centerLat = agency.getLatitude().doubleValue();
+                            centerLon = agency.getLongitude().doubleValue();
+                        }
+                    }
+
+                    String ip = request.getHeader("X-Forwarded-For");
+                    if (ip == null || ip.isEmpty()) ip = request.getRemoteAddr();
+                    String finalDeviceInfo = (deviceInfo != null ? deviceInfo : "Unknown") + " | IP: " + ip;
+
                     attendanceService.checkInWithGeofence(
-                            userId, latitude, longitude, deviceInfo,
-                            CHECKIN_RADIUS_KM, DINAS_CENTER_LAT, DINAS_CENTER_LON);
+                            userId, latitude, longitude, finalDeviceInfo,
+                            CHECKIN_RADIUS_KM, centerLat, centerLon);
                 } catch (IllegalStateException geoEx) {
                     log.warn("Geofencing check-in gagal untuk petugas {}: {}", userId, geoEx.getMessage());
                     redirectAttributes.addFlashAttribute("geoError", geoEx.getMessage());
@@ -151,9 +267,13 @@ public class PetugasController {
             @RequestParam(value = "latitude", required = false) java.math.BigDecimal latitude,
             @RequestParam(value = "longitude", required = false) java.math.BigDecimal longitude,
             @RequestParam(value = "estimatedTime", required = false) String estimatedTime,
+            @RequestParam(value = "photos", required = false) MultipartFile[] photos,
+            @RequestParam(value = "documents", required = false) MultipartFile[] documents,
+            @RequestParam(value = "additionalNotes", required = false) String additionalNotes,
             HttpSession session,
             RedirectAttributes redirectAttributes
     ) {
+        if (session.getAttribute("forceChangePasswordUserId") != null) return "redirect:/petugas/change-password";
         String userId = ControllerHelper.requireRole(session, "PETUGAS");
         if (userId == null) return "redirect:/petugas/login";
 
@@ -174,14 +294,17 @@ public class PetugasController {
                     case "complete" -> fieldTaskService.completeTask(id);
                     case "postpone" -> {
                         // FIX-8: FR-PTG-27 — Ajukan penundaan, TIDAK langsung TERTUNDA
-                        String reason = description != null && !description.isBlank() ? description : "Ditunda oleh petugas";
+                        String catReason = description != null && !description.isBlank() ? description : "Ditunda oleh petugas";
+                        String notes = additionalNotes != null ? additionalNotes.trim() : "";
+                        String reason = notes.isEmpty() ? catReason : catReason + " — " + notes;
                         LocalDateTime estimated = null;
                         if (estimatedTime != null && !estimatedTime.isBlank()) {
                             try { estimated = LocalDateTime.parse(estimatedTime); }
                             catch (Exception ex) { log.warn("Format estimatedTime tidak valid: {}", estimatedTime); }
                         }
                         fieldTaskService.requestPostpone(id, reason, userId, estimated);
-                        redirectAttributes.addFlashAttribute("successMsg",
+                        // FIX SCN-10 (2.5): Gunakan 'success' bukan 'successMsg' agar toast muncul
+                        redirectAttributes.addFlashAttribute("success",
                             "Pengajuan penundaan berhasil dikirim. Menunggu persetujuan admin.");
                     }
                     case "reassign" -> {
@@ -190,10 +313,39 @@ public class PetugasController {
                     }
                     case "reportback" -> {
                         log.warn("Lapor balik (invalid) untuk tugas {} oleh {}: {}", id, userId, description);
+                        
+                        if (photos != null && photos.length > 0) {
+                            log.info("Menerima {} foto pendukung lapor balik", photos.length);
+                            for (MultipartFile photo : photos) {
+                                if (!photo.isEmpty()) {
+                                    try {
+                                        String url = supabaseStorageService.upload(photo, "bukti");
+                                        fieldTaskService.saveTaskEvidenceDirect(id, url, TaskEvidence.EvidenceType.LAPOR_BALIK);
+                                    } catch (Exception e) {
+                                        log.error("Gagal upload foto lapor balik: {}", e.getMessage());
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if (documents != null && documents.length > 0) {
+                            log.info("Menerima {} dokumen pendukung lapor balik", documents.length);
+                            for (MultipartFile document : documents) {
+                                if (!document.isEmpty()) {
+                                    try {
+                                        String url = supabaseStorageService.upload(document, "bukti");
+                                        fieldTaskService.saveTaskEvidenceDirect(id, url, TaskEvidence.EvidenceType.LAPOR_BALIK);
+                                    } catch (Exception e) {
+                                        log.error("Gagal upload dokumen lapor balik: {}", e.getMessage());
+                                    }
+                                }
+                            }
+                        }
+                        
                         fieldTaskService.requestPostpone(id,
                             "Laporan invalid: " + (description != null ? description : "Tidak ada alasan"),
                             userId, null);
-                        redirectAttributes.addFlashAttribute("successMsg",
+                        redirectAttributes.addFlashAttribute("success",
                             "Laporan balik berhasil dikirim. Admin akan meninjau laporan ini.");
                     }
                     case "escalation" -> {
@@ -201,7 +353,7 @@ public class PetugasController {
                         fieldTaskService.requestPostpone(id,
                             "Eskalasi: " + (description != null ? description : "Tidak ada alasan"),
                             userId, null);
-                        redirectAttributes.addFlashAttribute("successMsg",
+                        redirectAttributes.addFlashAttribute("success",
                             "Eskalasi berhasil dikirim. Admin akan segera merespons.");
                     }
                 }
@@ -221,15 +373,22 @@ public class PetugasController {
             HttpSession session,
             @RequestParam(value = "checkIn", required = false) Boolean checkIn
     ) {
+        if (session.getAttribute("forceChangePasswordUserId") != null) return "redirect:/petugas/change-password";
         String userId = ControllerHelper.requireRole(session, "PETUGAS");
         if (userId == null) return "redirect:/petugas/login";
 
-        // FIX-10: Ambil nama dinas dari UserProfile.domisiliRegion, bukan hardcoded
+        // FIX-10: Nama dinas dari agency petugas (prioritas), fallback ke wilayah tugas/domisili
         userService.findById(userId).ifPresentOrElse(officer -> {
             String dinasName = "Dinas Pekerjaan Umum"; // default fallback
-            UserProfile profile = officer.getUserProfile();
-            if (profile != null && profile.getDomisiliRegion() != null) {
-                dinasName = profile.getDomisiliRegion().getRegionName();
+            if (officer.getAgency() != null) {
+                dinasName = officer.getAgency().getAgencyName();
+            } else {
+                UserProfile profile = officer.getUserProfile();
+                if (profile != null && profile.getWilayahTugas() != null) {
+                    dinasName = profile.getWilayahTugas().getRegionName();
+                } else if (profile != null && profile.getDomisiliRegion() != null) {
+                    dinasName = profile.getDomisiliRegion().getRegionName();
+                }
             }
             model.addAttribute("user", Map.of(
                 "name", officer.getFullName(),
@@ -242,10 +401,18 @@ public class PetugasController {
         if (!model.containsAttribute("user")) return "redirect:/petugas/login";
 
         List<FieldTask> realTasks = fieldTaskService.getTasksByOfficer(userId);
+        log.info("[DASHBOARD] userId={}, realTasks count={}", userId, realTasks.size());
+        for (FieldTask t : realTasks) {
+            log.info("[DASHBOARD] taskId={}, status={}, officerId={}",
+                t.getTaskId(), t.getTaskStatus(),
+                t.getOfficer() != null ? t.getOfficer().getUserId() : "null");
+        }
         long s  = realTasks.stream().filter(t -> t.getTaskStatus() == TaskStatus.SELESAI).count();
         long ip = realTasks.stream().filter(t -> t.getTaskStatus() == TaskStatus.SEDANG_DIKERJAKAN).count();
-        long n  = realTasks.stream().filter(t -> t.getTaskStatus() == TaskStatus.BARU).count();
+        long n  = realTasks.stream().filter(t -> t.getTaskStatus() == TaskStatus.BARU
+                || t.getTaskStatus() == TaskStatus.DITUGASKAN_ULANG).count();
         long p  = realTasks.stream().filter(t -> t.getTaskStatus() == TaskStatus.TERTUNDA).count();
+        log.info("[DASHBOARD] stats: tugasBaru={}, sedangDikerjakan={}, tertunda={}, selesai={}", n, ip, p, s);
         model.addAttribute("stats", Map.of(
             "selesaiHariIni", s, "sedangDikerjakan", ip, "tugasBaru", n, "tertunda", p));
 
@@ -269,6 +436,8 @@ public class PetugasController {
                 : shift.getShiftStatus() == OfficerAttendance.ShiftStatus.ISTIRAHAT ? "Istirahat" : "Selesai Shift");
             attendance.put("checkInTime", shift.getCheckInAt() != null
                 ? shift.getCheckInAt().format(ControllerHelper.TIME_FMT) : "-");
+            attendance.put("rawCheckInAt", shift.getCheckInAt() != null
+                ? shift.getCheckInAt().atZone(java.time.ZoneId.systemDefault()).toEpochSecond() * 1000 : null);
             attendance.put("workDuration", shift.getCheckInAt() != null
                 ? formatDuration(Duration.between(shift.getCheckInAt(), LocalDateTime.now())) : "00:00:00");
             attendance.put("location", shift.getCheckInLatitude() != null
@@ -291,6 +460,7 @@ public class PetugasController {
     // ==========================================
     @GetMapping("/petugas/tasks")
     public String petugasTasks(Model model, HttpSession session) {
+        if (session.getAttribute("forceChangePasswordUserId") != null) return "redirect:/petugas/change-password";
         String userId = ControllerHelper.requireRole(session, "PETUGAS");
         if (userId == null) return "redirect:/petugas/login";
 
@@ -319,22 +489,23 @@ public class PetugasController {
         for (FieldTask t : realTasks) {
             switch (t.getTaskStatus()) {
                 case BARU -> tasksNew.add(toPetugasTaskMap(t, userLat, userLng));
+                case DITUGASKAN_ULANG -> tasksNew.add(toPetugasTaskMap(t, userLat, userLng));
                 case SEDANG_DIKERJAKAN -> tasksInProgress.add(toPetugasTaskMap(t, userLat, userLng));
                 case TERTUNDA -> tasksPending.add(toPetugasTaskMap(t, userLat, userLng));
                 default -> {}
             }
         }
-        
+
         // FIX-8: FR-PTG-10 — Algoritma Sorting Cerdas (SLA + GPS Proximity)
         java.util.Comparator<Map<String, Object>> scoreComparator = (m1, m2) -> {
-            long sla1 = (Long) m1.getOrDefault("rawSlaRemaining", 999L);
-            double dist1 = (Double) m1.getOrDefault("rawDistance", 999.0);
-            int prio1 = (Integer) m1.getOrDefault("rawPriorityScore", 2);
+            long sla1 = ((Number) m1.getOrDefault("rawSlaRemaining", 999L)).longValue();
+            double dist1 = ((Number) m1.getOrDefault("rawDistance", 999.0)).doubleValue();
+            int prio1 = ((Number) m1.getOrDefault("rawPriorityScore", 2)).intValue();
             double score1 = (sla1 * 10) + (dist1 * 2) + (prio1 * 50);
 
-            long sla2 = (Long) m2.getOrDefault("rawSlaRemaining", 999L);
-            double dist2 = (Double) m2.getOrDefault("rawDistance", 999.0);
-            int prio2 = (Integer) m2.getOrDefault("rawPriorityScore", 2);
+            long sla2 = ((Number) m2.getOrDefault("rawSlaRemaining", 999L)).longValue();
+            double dist2 = ((Number) m2.getOrDefault("rawDistance", 999.0)).doubleValue();
+            int prio2 = ((Number) m2.getOrDefault("rawPriorityScore", 2)).intValue();
             double score2 = (sla2 * 10) + (dist2 * 2) + (prio2 * 50);
 
             return Double.compare(score1, score2);
@@ -358,6 +529,7 @@ public class PetugasController {
             HttpSession session,
             @RequestParam(value = "id", required = false, defaultValue = "TGS-001") String id
     ) {
+        if (session.getAttribute("forceChangePasswordUserId") != null) return "redirect:/petugas/change-password";
         String userId = ControllerHelper.requireRole(session, "PETUGAS");
         if (userId == null) return "redirect:/petugas/login";
 
@@ -375,6 +547,10 @@ public class PetugasController {
                     ? lp.getRequestedAt().format(ControllerHelper.DATETIME_FMT) : "-");
                 task.put("postponeStatus", lp.getApprovalStatus() != null ? lp.getApprovalStatus().name() : "MENUNGGU");
             });
+
+            // Riwayat status tugas dari FieldTaskStatusRevision
+            List<FieldTaskStatusRevision> revisions = fieldTaskService.getTaskRevisions(id);
+            task.put("taskRevisions", revisions);
 
             // FIX-1: Gunakan koordinat LAPORAN (lokasi kerusakan) untuk navigasi
             Map<String, Object> locationMap = new HashMap<>();
@@ -437,6 +613,7 @@ public class PetugasController {
             @RequestParam(value = "id", required = false, defaultValue = "TGS-001") String id,
             @RequestParam(value = "step", required = false, defaultValue = "before") String step
     ) {
+        if (session.getAttribute("forceChangePasswordUserId") != null) return "redirect:/petugas/change-password";
         String userId = ControllerHelper.requireRole(session, "PETUGAS");
         if (userId == null) return "redirect:/petugas/login";
 
@@ -496,6 +673,7 @@ public class PetugasController {
             @RequestParam(value = "photoAfterData", required = false) String photoAfterData,
             HttpSession session
     ) {
+        if (session.getAttribute("forceChangePasswordUserId") != null) return "redirect:/petugas/change-password";
         String userId = ControllerHelper.requireRole(session, "PETUGAS");
         if (userId == null) return "redirect:/petugas/login";
 
@@ -511,7 +689,8 @@ public class PetugasController {
                         fieldTaskService.saveTaskEvidence(id, photoAfterData, TaskEvidence.EvidenceType.SESUDAH);
                     }
                 } catch (Exception ev) {
-                    log.error("Gagal simpan evidence {}, lanjut complete: {}", id, ev.getMessage());
+                    log.error("Gagal simpan evidence {}, membatalkan completeTask: {}", id, ev.getMessage());
+                    return "redirect:/petugas/task-execution?id=" + id + "&step=after&error=Gagal+menyimpan+foto";
                 }
                 fieldTaskService.completeTask(id);
                 return "redirect:/petugas/dashboard";
@@ -527,6 +706,7 @@ public class PetugasController {
     // ==========================================
     @GetMapping("/petugas/history")
     public String petugasHistory(Model model, HttpSession session) {
+        if (session.getAttribute("forceChangePasswordUserId") != null) return "redirect:/petugas/change-password";
         String userId = ControllerHelper.requireRole(session, "PETUGAS");
         if (userId == null) return "redirect:/petugas/login";
 
@@ -563,6 +743,8 @@ public class PetugasController {
                 ? formatDuration(Duration.between(t.getStartedAt(), t.getCompletedAt())) : "-");
             m.put("completedAt", t.getCompletedAt() != null
                 ? t.getCompletedAt().format(ControllerHelper.DATE_FMT) : "-");
+            m.put("rawCompletedAt", t.getCompletedAt() != null
+                ? t.getCompletedAt().atZone(java.time.ZoneId.systemDefault()).toEpochSecond() * 1000 : 0L);
             // FIX: Count evidence dari DB
             List<TaskEvidence> beforeEvs = fieldTaskService.getEvidencesByTaskAndType(
                 t.getTaskId(), TaskEvidence.EvidenceType.SEBELUM);
@@ -583,13 +765,14 @@ public class PetugasController {
     // ==========================================
     @GetMapping("/petugas/history-detail")
     public String petugasHistoryDetail(Model model, HttpSession session, @RequestParam("id") String id) {
+        if (session.getAttribute("forceChangePasswordUserId") != null) return "redirect:/petugas/change-password";
         String userId = ControllerHelper.requireRole(session, "PETUGAS");
         if (userId == null) return "redirect:/petugas/login";
 
         Optional<FieldTask> taskOpt = fieldTaskService.getTaskById(id);
-        if (taskOpt.isPresent() && taskOpt.get().getOfficer() != null 
+        if (taskOpt.isPresent() && taskOpt.get().getOfficer() != null
             && taskOpt.get().getOfficer().getUserId().equals(userId)) {
-            
+
             FieldTask t = taskOpt.get();
             Map<String, Object> m = new HashMap<>();
             m.put("id", t.getTaskId());
@@ -603,25 +786,25 @@ public class PetugasController {
                 ? formatDuration(Duration.between(t.getStartedAt(), t.getCompletedAt())) : "-");
             m.put("startedAt", t.getStartedAt() != null ? t.getStartedAt().format(ControllerHelper.DATETIME_FMT) : "-");
             m.put("completedAt", t.getCompletedAt() != null ? t.getCompletedAt().format(ControllerHelper.DATETIME_FMT) : "-");
-            
-            m.put("description", t.getReport() != null && t.getReport().getDescription() != null 
+
+            m.put("description", t.getReport() != null && t.getReport().getDescription() != null
                 ? t.getReport().getDescription() : "-");
-            m.put("reporterName", t.getReport() != null && t.getReport().getReporter() != null 
+            m.put("reporterName", t.getReport() != null && t.getReport().getReporter() != null
                 ? t.getReport().getReporter().getFullName() : "-");
-            m.put("reportDate", t.getReport() != null && t.getReport().getSubmittedAt() != null 
+            m.put("reportDate", t.getReport() != null && t.getReport().getSubmittedAt() != null
                 ? t.getReport().getSubmittedAt().format(ControllerHelper.DATETIME_FMT) : "-");
-            
+
             if (t.getReport() != null) {
                 m.put("latitude", t.getReport().getLatitude());
                 m.put("longitude", t.getReport().getLongitude());
             }
-            
+
             List<TaskEvidence> beforeEvs = fieldTaskService.getEvidencesByTaskAndType(t.getTaskId(), TaskEvidence.EvidenceType.SEBELUM);
             List<TaskEvidence> afterEvs  = fieldTaskService.getEvidencesByTaskAndType(t.getTaskId(), TaskEvidence.EvidenceType.SESUDAH);
-            
+
             m.put("photoBeforeList", beforeEvs);
             m.put("photoAfterList", afterEvs);
-            
+
             model.addAttribute("task", m);
             return "petugas/history-detail";
         }
@@ -637,6 +820,7 @@ public class PetugasController {
             HttpSession session,
             @RequestParam(value = "period", required = false, defaultValue = "week") String period
     ) {
+        if (session.getAttribute("forceChangePasswordUserId") != null) return "redirect:/petugas/change-password";
         String userId = ControllerHelper.requireRole(session, "PETUGAS");
         if (userId == null) return "redirect:/petugas/login";
 
@@ -702,8 +886,8 @@ public class PetugasController {
         } else if (period.equals("month")) {
             progressTitle = "Tugas per Minggu (30 Hari Terakhir)";
             for (int w = 4; w >= 1; w--) {
-                LocalDate start = now.minusWeeks(w);
-                LocalDate end = start.plusDays(6);
+                LocalDate end = now.minusDays((w - 1) * 7L);
+                LocalDate start = end.minusDays(6);
                 int weekTasks = (int) completed.stream()
                     .filter(t -> t.getCompletedAt() != null
                         && !t.getCompletedAt().toLocalDate().isBefore(start)
@@ -735,6 +919,7 @@ public class PetugasController {
     // ==========================================
     @GetMapping("/petugas/attendance-history")
     public String petugasAttendanceHistory(Model model, HttpSession session) {
+        if (session.getAttribute("forceChangePasswordUserId") != null) return "redirect:/petugas/change-password";
         String userId = ControllerHelper.requireRole(session, "PETUGAS");
         if (userId == null) return "redirect:/petugas/login";
         {
@@ -748,9 +933,24 @@ public class PetugasController {
                 long lateCount = 0;
                 List<Map<String, Object>> recordList = realRecords.stream().map(r -> {
                     Map<String, Object> di = new HashMap<>();
-                    di.put("browser", r.getDeviceInfo() != null ? r.getDeviceInfo() : "Unknown");
-                    di.put("os", "Android");
-                    di.put("ip", "-");
+                    String userAgent = r.getDeviceInfo() != null ? r.getDeviceInfo() : "Unknown";
+                    String ip = "-";
+                    if (userAgent.contains("| IP: ")) {
+                        String[] parts = userAgent.split("\\| IP: ");
+                        userAgent = parts[0].trim();
+                        if (parts.length > 1) ip = parts[1].trim();
+                    }
+                    di.put("browser", userAgent);
+                    
+                    String os = "Unknown";
+                    if (userAgent.contains("Windows")) os = "Windows";
+                    else if (userAgent.contains("Mac")) os = "MacOS";
+                    else if (userAgent.contains("Linux")) os = "Linux";
+                    else if (userAgent.contains("Android")) os = "Android";
+                    else if (userAgent.contains("iPhone") || userAgent.contains("iPad")) os = "iOS";
+                    
+                    di.put("os", os);
+                    di.put("ip", ip);
                     String dateFmt = r.getCheckInAt() != null ? r.getCheckInAt().format(ControllerHelper.DATE_FMT) : "-";
                     String ciTime = r.getCheckInAt() != null ? r.getCheckInAt().format(ControllerHelper.TIME_FMT) : "-";
                     String coTime = r.getCheckOutAt() != null ? r.getCheckOutAt().format(ControllerHelper.TIME_FMT) : null;
@@ -817,21 +1017,25 @@ public class PetugasController {
             ? task.getReport().getReporter().getPhoneNumber() : "-");
         m.put("reportDate", task.getReport() != null && task.getReport().getSubmittedAt() != null
             ? task.getReport().getSubmittedAt().format(ControllerHelper.DATE_FMT) : "-");
+        m.put("rawReportDate", task.getReport() != null && task.getReport().getSubmittedAt() != null
+            ? task.getReport().getSubmittedAt().atZone(java.time.ZoneId.systemDefault()).toEpochSecond() : 0L);
         // FR-PTG-17: flag koreksi koordinat agar UI modal bisa tampilkan status 1x
         m.put("coordinateCorrected", task.getReport() != null && task.getReport().isCoordinateCorrected());
-            
+        // Laporan Warga Evidence
+        m.put("photoBase64", task.getReport() != null ? task.getReport().getPhotoBase64() : null);
+
         // Calculate distance
-        if (userLat != null && userLng != null && task.getReport() != null && 
+        if (userLat != null && userLng != null && task.getReport() != null &&
             task.getReport().getLatitude() != null && task.getReport().getLongitude() != null) {
             double distKm = com.plr.aduaja.util.GeoUtils.haversineKm(
-                userLat, userLng, 
+                userLat, userLng,
                 task.getReport().getLatitude(), task.getReport().getLongitude());
             m.put("distanceToTask", String.format("%.2f km", distKm));
             m.put("rawDistance", distKm);
         } else {
             m.put("rawDistance", 999.0);
         }
-            
+
         // SLA data dari SlaRecord
         m.put("rawSlaRemaining", 999L);
         if (task.getSlaRecord() != null) {
@@ -841,11 +1045,11 @@ public class PetugasController {
             boolean isOverdue = sla.getSlaDeadlineAt() != null
                 && sla.getCurrentStatus() != SlaRecord.SlaStatus.SELESAI
                 && LocalDateTime.now().isAfter(sla.getSlaDeadlineAt());
-            
+
             long remainingHours = sla.getSlaDeadlineAt() != null
                 ? Duration.between(LocalDateTime.now(), sla.getSlaDeadlineAt()).toHours() : 999L;
             m.put("rawSlaRemaining", remainingHours);
-                
+
             if (sla.getCurrentStatus() == SlaRecord.SlaStatus.SELESAI) {
                 m.put("slaStatusText", "Selesai"); m.put("slaStatusClass", "text-green-600");
             } else if (sla.getCurrentStatus() == SlaRecord.SlaStatus.TERLAMBAT || isOverdue) {
@@ -861,7 +1065,7 @@ public class PetugasController {
             m.put("slaDeadline", "-"); m.put("slaStatusText", "-"); m.put("slaStatusClass", "text-gray-600");
             m.put("rawSlaRemaining", 999L);
         }
-        
+
         m.put("rawPriorityScore", 2); // Default Medium
         if (m.get("priority") != null) {
             String p = m.get("priority").toString();
@@ -898,6 +1102,7 @@ public class PetugasController {
             @RequestParam("correctedLat") String correctedLatStr,
             @RequestParam("correctedLng") String correctedLngStr
     ) {
+        if (session.getAttribute("forceChangePasswordUserId") != null) return "redirect:/petugas/change-password";
         String userId = ControllerHelper.requireRole(session, "PETUGAS");
         if (userId == null) return "redirect:/petugas/login";
 

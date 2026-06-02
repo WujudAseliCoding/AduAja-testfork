@@ -24,8 +24,28 @@
                           linear-gradient(to bottom, rgba(255,255,255,0.3) 1px, transparent 1px);
         background-size: 33.33% 33.33%;
       }
-      .zoom-slider { -webkit-appearance: none; appearance: none; height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px; outline: none; }
-      .zoom-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%; background: white; cursor: pointer; border: 2px solid rgba(0,0,0,0.3); }
+      .zoom-slider { -webkit-appearance: none; appearance: none; height: 4px; background: rgba(255,255,255,0.4); border-radius: 2px; outline: none; }
+      .zoom-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 22px; height: 22px; border-radius: 50%; background: white; cursor: pointer; border: 2px solid rgba(0,0,0,0.2); box-shadow: 0 2px 6px rgba(0,0,0,0.4); }
+      #revCamViewfinder { overflow: hidden; }
+      #revisionVideo { object-fit: cover; width: 100%; height: 100%; transform-origin: center center; transition: transform 0.08s ease-out; }
+      #revCamFocusRing {
+        position: absolute; width: 64px; height: 64px;
+        border: 2px solid #facc15; border-radius: 4px;
+        pointer-events: none; display: none;
+        box-shadow: 0 0 0 1px rgba(0,0,0,0.5);
+        animation: focusPulse 0.4s ease-out;
+      }
+      @keyframes focusPulse {
+        0%   { transform: translate(-50%,-50%) scale(1.4); opacity: 0.5; }
+        100% { transform: translate(-50%,-50%) scale(1);   opacity: 1;   }
+      }
+      #revCamZoomBadge {
+        position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+        background: rgba(0,0,0,0.55); color: #fff; font-size: 13px; font-weight: 700;
+        padding: 3px 12px; border-radius: 20px; letter-spacing: 0.5px;
+        opacity: 0; transition: opacity 0.25s; pointer-events: none;
+      }
+      #revCamZoomBadge.show { opacity: 1; }
     </style>
   </th:block>
 
@@ -91,6 +111,24 @@
             <span th:text="${report['createdDate']}">Tanggal lapor</span>
             <span th:text="${report['slaDeadline']}">Deadline SLA</span>
           </div>
+          <div th:if="${slaStatus != null}" class="mt-3 flex flex-wrap gap-2">
+            <span th:if="${slaStatus == 'TERTUNDA'}"
+                  class="text-xs px-2 py-1 rounded bg-yellow-100 text-yellow-700 font-semibold">
+              SLA Sedang Dijeda
+            </span>
+            <span th:if="${slaStatus == 'TERLAMBAT'}"
+                  class="text-xs px-2 py-1 rounded bg-red-100 text-red-700 font-semibold">
+              SLA Terlambat
+            </span>
+          </div>
+        </div>
+
+        <div th:if="${taskStatus == 'TERTUNDA'}"
+             class="mb-6 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <p class="text-sm text-yellow-800">
+            <i data-lucide="pause-circle" class="w-4 h-4 inline mr-1"></i>
+            Tugas sedang ditunda. Admin dinas akan melanjutkan setelah kendala selesai.
+          </p>
         </div>
 
         <!-- Peta Lokasi -->
@@ -316,8 +354,8 @@
         </div>
 
         <!-- Tindakan -->
-        <!-- FR-WRG-23: Batalkan laporan (hanya saat MENUNGGU_VALIDASI) -->
-        <div th:if="${report['status'] == 'Menunggu'}"
+        <!-- FR-WRG-23: Batalkan laporan (hanya saat MENUNGGU_VERIFIKASI) -->
+        <div th:if="${report['status'] == 'Menunggu Verifikasi'}"
              class="bg-gray-50 border border-gray-200 rounded-xl p-5 mb-6">
           <div class="flex items-center justify-between">
             <div class="flex items-start gap-3">
@@ -342,8 +380,8 @@
           </div>
         </div>
 
-        <!-- FR-RSL-04 + FR-RSL-07: Konfirmasi & Sengketa (hanya saat MENUNGGU_KONFIRMASI, dan belum dikunci) -->
-        <div th:if="${report['status'] == 'Menunggu Konfirmasi' and !confirmationIsLocked}"
+        <!-- FR-RSL-04 + FR-RSL-07: Konfirmasi & Sengketa (hanya saat MENUNGGU_VALIDASI atau TERGABUNG dgn pending confirmation, dan belum dikunci) -->
+        <div th:if="${(report['status'] == 'Menunggu Konfirmasi Warga' or (report['status'] == 'Tergabung' and hasPendingConfirmation)) and !confirmationIsLocked and !existingDispute}"
              class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
           <!-- FR-RSL-04: Countdown batas konfirmasi 3x24 jam kerja -->
           <div x-show="confirmationDeadline" class="mb-5 bg-amber-50 border border-amber-200 rounded-xl p-4">
@@ -378,13 +416,38 @@
               class="flex-1 border border-red-500 text-red-600 px-4 py-3 rounded-lg font-medium hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
             >
               <i data-lucide="alert-circle" class="w-5 h-5"></i>
-              Ajukan Sengketa
+              Tolak Hasil / Ajukan Komplain
+            </button>
+          </div>
+        </div>
+        
+        <!-- FR-RSL-11: Sengketa sudah dipakai — hanya bisa konfirmasi, tidak bisa komplain lagi -->
+        <div th:if="${(report['status'] == 'Menunggu Konfirmasi Warga' or (report['status'] == 'Tergabung' and hasPendingConfirmation)) and existingDispute}"
+             class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
+          <div class="mb-4 bg-orange-50 border border-orange-200 rounded-xl p-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <i data-lucide="alert-triangle" class="w-5 h-5 text-orange-600"></i>
+              </div>
+              <div>
+                <h3 class="font-medium text-orange-800">Sengketa Sudah Diajukan</h3>
+                <p class="text-sm text-orange-600">Anda sudah mengajukan sengketa untuk laporan ini. Maksimal 1 kali pengajuan sengketa per tiket.</p>
+              </div>
+            </div>
+          </div>
+          <h3 class="font-semibold text-gray-900 mb-2">Konfirmasi Hasil Perbaikan</h3>
+          <p class="text-sm text-gray-500 mb-4">Petugas telah menyelesaikan perbaikan. Silakan konfirmasi jika hasilnya sudah sesuai.</p>
+          <div class="flex flex-col sm:flex-row gap-3">
+            <button type="button" x-on:click="showConfirmDialog = true"
+                    class="flex-1 bg-green-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
+              <i data-lucide="check-circle" class="w-5 h-5"></i>
+              Konfirmasi Selesai
             </button>
           </div>
         </div>
 
-        <!-- FR-RSL-07: Informasi jika konfirmasi sudah dikunci -->
-        <div th:if="${report['status'] == 'Menunggu Konfirmasi' and confirmationIsLocked}"
+        <!-- FR-RSL-07: Informasi jika konfirmasi sudah dikunci (dan belum pernah sengketa) -->
+        <div th:if="${(report['status'] == 'Menunggu Konfirmasi Warga' or (report['status'] == 'Tergabung' and hasPendingConfirmation)) and confirmationIsLocked and !existingDispute}"
              class="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-6">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -398,7 +461,7 @@
         </div>
 
         <!-- FR-WRG-17 + FR-WRG-18: Tombol Revisi (hanya saat status Perlu Revisi) -->
-        <div th:if="${report['status'] == 'Perlu Revisi'}"
+        <div th:if="${report['status'] == 'Menunggu Revisi'}"
              class="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-6">
           <div class="flex items-start gap-3">
             <div class="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -466,10 +529,10 @@
         >
           <div class="bg-white rounded-lg p-6 max-w-md w-full max-h-screen overflow-y-auto">
             <h3 class="text-lg font-semibold text-gray-900 mb-2">
-              Ajukan Sengketa
+              Tolak Hasil / Ajukan Komplain
             </h3>
             <p class="text-sm text-gray-600 mb-4">
-              Berikan alasan dan unggah bukti untuk pengajuan sengketa.
+              Berikan alasan penolakan dan unggah bukti kondisi lapangan terbaru yang menunjukkan kerusakan belum beres.
             </p>
             <form
               th:action="@{/warga/dispute-report}"
@@ -493,7 +556,7 @@
                 <p class="text-sm font-medium text-gray-700 mb-2">
                 <!-- FR-RSL-10: Foto bukti wajib untuk sengketa -->
                 Foto Bukti <span class="text-red-500">*</span>
-                <span class="text-xs text-gray-400 font-normal">(wajib)</span>
+                <span class="text-xs text-gray-400 font-normal">(wajib — ambil dari kamera)</span>
               </p>
                 <div id="disputePhotoPreview" class="hidden mb-2">
                   <div class="relative">
@@ -506,9 +569,9 @@
                   </div>
                 </div>
                 <button type="button" onclick="openDisputeCamera()"
-                  class="w-full flex items-center justify-center gap-2 py-2 border-2 border-dashed border-blue-300 rounded-lg hover:bg-blue-50 text-blue-700 text-sm font-medium transition-colors">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>
-                  Ambil Foto Bukti
+                  class="w-full flex items-center justify-center gap-2 py-3 border-2 border-green-400 bg-green-50 rounded-lg hover:bg-green-100 text-green-700 text-sm font-semibold transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>
+                  Ambil Foto Bukti dengan Kamera
                 </button>
               </div>
 
@@ -582,14 +645,7 @@
         </div>
 
         <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6"
-              x-data="revisionForm(
-                [[${report != null ? report['category'] : ''}]],
-                [[${report != null ? report['description'] : ''}]],
-                [[${report != null ? report['landmark'] : ''}]],
-                [[${report != null ? report['latitude'] : '3.5952'}]],
-                [[${report != null ? report['longitude'] : '98.6722'}]],
-                [[${report != null && report['photoUrl'] != null}]]
-              )"
+              x-data="revisionForm(revisionFormData)"
               x-init="initRevisionMap()">
           <form
             th:action="@{/warga/revise-report}"
@@ -623,7 +679,7 @@
               </label>
 
               <!-- Foto saat ini (bisa edit/hapus/ganti) -->
-              <div x-show="!newPhotoSelected && currentPhoto" class="mb-4">
+              <div x-show="!revisionNewPhoto && revisionCurrentPhoto" class="mb-4">
                 <div class="relative">
                   <img
                     th:if="${report['photoUrl'] != null}"
@@ -775,8 +831,9 @@
             </div>
           </form>
         </main>
+      </div>
 
-        <!-- Camera Modal for Revision (Full-screen, phone-like UI) -->
+        <!-- Camera Modal (dipindahkan KELUAR dari revision dialog agar bisa dipakai juga oleh dispute dialog) -->
         <div id="revisionCameraModal" class="fixed inset-0 bg-black flex flex-col" style="z-index: 99999;">
           <!-- Top Bar -->
           <div class="flex items-center justify-between px-4 py-3 bg-black/60 backdrop-blur-sm relative z-10">
@@ -796,24 +853,42 @@
             </div>
           </div>
 
-          <!-- Viewfinder -->
-          <div class="flex-1 relative overflow-hidden bg-black">
-            <video id="revisionVideo" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover"></video>
+          <!-- Viewfinder — overflow:hidden + isolation memastikan video ter-clip saat scale zoom -->
+          <div class="flex-1 relative bg-black" id="revCamViewfinder" style="overflow:hidden; contain: strict;">
+            <video id="revisionVideo" autoplay playsinline muted
+                   style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform-origin:center center;transition:transform 0.08s ease-out;"></video>
+            <!-- Focus ring (tap-to-focus) -->
+            <div id="revCamFocusRing"></div>
+            <!-- Zoom badge (di atas) -->
+            <div id="revCamZoomBadge">1.0×</div>
             <div id="revCamGridOverlay" class="absolute inset-0 pointer-events-none hidden cam-grid-overlay"></div>
-            <div id="revCamFlashOverlay" class="absolute inset-0 bg-white pointer-events-none" style="opacity: 0; transition: opacity 0.3s;"></div>
-            <div id="revCamZoomLabel" class="absolute top-4 left-1/2 -translate-x-1/2 bg-black/50 text-white text-xs px-3 py-1 rounded-full hidden">1.0x</div>
+            <div id="revCamFlashOverlay" class="absolute inset-0 bg-white pointer-events-none" style="opacity:0;transition:opacity 0.15s;"></div>
           </div>
 
-          <!-- Zoom Slider -->
-          <div class="px-8 py-2 bg-black/60 backdrop-blur-sm relative z-10">
-            <div class="flex items-center gap-3 text-white text-xs">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
-              <input type="range" id="revCamZoomSlider" min="1" max="5" step="0.1" value="1" class="zoom-slider flex-1" />
-              <span id="revCamZoomValue" class="w-10 text-center font-mono">1.0x</span>
+          <!-- Zoom Controls -->
+          <div class="bg-black/60 backdrop-blur-sm relative z-10">
+            <!-- Quick zoom buttons (1x/2x/3x) -->
+            <div class="flex items-center justify-center gap-3 pt-2 pb-1">
+              <button type="button" id="revCamZoom1x"
+                class="px-3 py-1 rounded-full text-xs font-bold border border-white/40 text-white bg-white/20 active:bg-white/40"
+                onclick="revCamApplyZoom(1.0)">1×</button>
+              <button type="button" id="revCamZoom2x"
+                class="px-3 py-1 rounded-full text-xs font-bold border border-white/40 text-white active:bg-white/40"
+                onclick="revCamApplyZoom(2.0)">2×</button>
+              <button type="button" id="revCamZoom3x"
+                class="px-3 py-1 rounded-full text-xs font-bold border border-white/40 text-white active:bg-white/40"
+                onclick="revCamApplyZoom(3.0)">3×</button>
+            </div>
+            <!-- Slider zoom halus -->
+            <div class="flex items-center gap-3 text-white text-xs px-8 pb-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="range" id="revCamZoomSlider" min="1" max="5" step="0.05" value="1" class="zoom-slider flex-1" />
+              <span id="revCamZoomValue" class="w-10 text-center font-mono text-xs">1.0×</span>
             </div>
           </div>
 
           <!-- Bottom Controls -->
+          <!-- FR-WRG-09: Gallery button dihapus - foto hanya dari kamera langsung -->
           <div class="flex items-center justify-around px-8 py-6 bg-black/60 backdrop-blur-sm relative z-10">
             <div class="w-12 h-12"></div>
 
@@ -838,7 +913,6 @@
             </div>
           </div>
         </div>
-      </div>
     </div>
   </div>
 
@@ -954,19 +1028,28 @@
             return pct.toFixed(1);
           },
           showSLA() {
-            return ['Divalidasi', 'Didisposisi', 'Ditugaskan', 'Diproses'].includes(this.reportStatus);
+            return ['Diterima', 'Dalam Peninjauan', 'Ditugaskan', 'Sedang Berjalan'].includes(this.reportStatus);
           }
         };
       }
 
-      function revisionForm(currentCategory, currentDescription, currentLandmark, currentLat, currentLng, hasPhoto) {
+      const revisionFormData = {
+        category: [[${report != null ? report['category'] : ''}]],
+        description: [[${report != null ? report['description'] : ''}]],
+        landmark: [[${report != null ? report['landmark'] : ''}]],
+        latitude: [[${report != null ? report['latitude'] : '3.5952'}]],
+        longitude: [[${report != null ? report['longitude'] : '98.6722'}]],
+        hasPhoto: [[${report != null && report['photoUrl'] != null}]]
+      };
+
+      function revisionForm(data) {
         return {
-          category: currentCategory || '',
-          description: currentDescription || '',
-          landmark: currentLandmark || '',
-          lat: currentLat || '3.5952',
-          lng: currentLng || '98.6722',
-          revisionCurrentPhoto: hasPhoto === true || hasPhoto === 'true',
+          category: data.category || '',
+          description: data.description || '',
+          landmark: data.landmark || '',
+          lat: data.latitude || '3.5952',
+          lng: data.longitude || '98.6722',
+          revisionCurrentPhoto: data.hasPhoto === true,
           revisionNewPhoto: false,
           revisionNewPhotoUrl: '',
           revisionNewPhotoBase64: '',
@@ -1042,12 +1125,92 @@
         };
       }
 
-      // Global revision camera state
+      // ============================================================
+      // CAMERA ENGINE — AduAja (for revision & dispute)
+      // Fitur: Hardware/Digital Zoom, Pinch-to-Zoom, Tap-to-Focus,
+      //        Flash, Grid, Switch Kamera, Auto GPS saat jepret
+      // Adapted from create-report.html — FR-WRG-08, FR-WRG-09, FR-WRG-10
+      // ============================================================
       let revCamState = {
-        stream: null, facingMode: 'environment', zoom: 1, flash: false, grid: false,
-        photoUrl: '', photoBase64: '', parentScope: null
+        stream: null,
+        facingMode: 'environment',
+        zoom: 1.0,
+        minZoom: 1.0,
+        maxZoom: 5.0,
+        useHardwareZoom: false,
+        flash: false,
+        grid: false,
+        photoUrl: '', photoBase64: '',
+        parentScope: null,
+        _photoTimestamp: null,
+        _photoLat: null, _photoLng: null,
+        _zoomBadgeTimer: null,
+        _pinch: { active: false, startDist: 0, startZoom: 1 }
       };
 
+      // ---- Zoom Helper ----
+      function _clampZoom(v) {
+        return Math.min(revCamState.maxZoom, Math.max(revCamState.minZoom, v));
+      }
+
+      function _showZoomBadge(z) {
+        const badge  = document.getElementById('revCamZoomBadge');
+        const label  = document.getElementById('revCamZoomValue');
+        const slider = document.getElementById('revCamZoomSlider');
+
+        const txt = z.toFixed(1) + '\u00d7';
+        if (badge) { badge.textContent = txt; badge.classList.add('show'); }
+        if (label) label.textContent = txt;
+        if (slider) slider.value = z;
+
+        ['revCamZoom1x','revCamZoom2x','revCamZoom3x'].forEach(id => {
+          const btn = document.getElementById(id);
+          if (btn) btn.style.backgroundColor = '';
+        });
+        if (z <= 1.1) {
+          const b = document.getElementById('revCamZoom1x');
+          if (b) b.style.backgroundColor = 'rgba(255,255,255,0.35)';
+        } else if (z <= 2.1) {
+          const b = document.getElementById('revCamZoom2x');
+          if (b) b.style.backgroundColor = 'rgba(255,255,255,0.35)';
+        } else if (z <= 3.1) {
+          const b = document.getElementById('revCamZoom3x');
+          if (b) b.style.backgroundColor = 'rgba(255,255,255,0.35)';
+        }
+
+        clearTimeout(revCamState._zoomBadgeTimer);
+        revCamState._zoomBadgeTimer = setTimeout(() => {
+          if (badge) badge.classList.remove('show');
+        }, 1500);
+      }
+
+      async function _applyZoom(z) {
+        z = _clampZoom(z);
+        revCamState.zoom = z;
+        _showZoomBadge(z);
+
+        if (revCamState.useHardwareZoom && revCamState.stream) {
+          const track = revCamState.stream.getVideoTracks()[0];
+          if (track) {
+            try {
+              await track.applyConstraints({ advanced: [{ zoom: z }] });
+              return;
+            } catch(e) { /* fallback to digital */ }
+          }
+        }
+        _updateDigitalZoomPreview(z);
+      }
+
+      // Expose for onclick handlers
+      function revCamApplyZoom(z) { _applyZoom(z); }
+
+      function _updateDigitalZoomPreview(z) {
+        const video = document.getElementById('revisionVideo');
+        if (!video) return;
+        video.style.transform = z > 1.0 ? 'scale(' + z + ')' : '';
+      }
+
+      // ---- Start Camera ----
       function startRevisionCamera(scope) {
         revCamState.parentScope = scope;
         const modal = document.getElementById('revisionCameraModal');
@@ -1062,62 +1225,135 @@
         modal.classList.add('camera-active');
         document.body.style.overflow = 'hidden';
 
-        navigator.mediaDevices.getUserMedia({
-          video: { facingMode: revCamState.facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        const constraints = {
+          video: {
+            facingMode: revCamState.facingMode,
+            width: { ideal: 1920 }, height: { ideal: 1080 }
+          },
           audio: false
-        }).then(stream => {
+        };
+
+        navigator.mediaDevices.getUserMedia(constraints).then(stream => {
           revCamState.stream = stream;
           video.srcObject = stream;
           video.play().catch(e => console.error('Play error:', e));
+
+          const track = stream.getVideoTracks()[0];
+          const caps = track.getCapabilities ? track.getCapabilities() : {};
+          if (caps.zoom) {
+            revCamState.useHardwareZoom = true;
+            revCamState.minZoom = caps.zoom.min || 1;
+            revCamState.maxZoom = caps.zoom.max || 5;
+            const slider = document.getElementById('revCamZoomSlider');
+            if (slider) {
+              slider.min = revCamState.minZoom;
+              slider.max = revCamState.maxZoom;
+            }
+          } else {
+            revCamState.useHardwareZoom = false;
+            revCamState.minZoom = 1.0;
+            revCamState.maxZoom = 5.0;
+          }
+
+          revCamState.zoom = 1.0;
+          _updateDigitalZoomPreview(1.0);
+          _showZoomBadge(1.0);
           document.getElementById('revCamPreviewOverlay').classList.add('hidden');
           document.getElementById('revCamGridOverlay').classList.toggle('hidden', !revCamState.grid);
-          updateRevZoomUI();
+
+          _setupGestures();
+
         }).catch(err => {
           modal.classList.remove('camera-active');
           document.body.style.overflow = '';
           if (err.name === 'NotAllowedError') alert('Akses kamera ditolak. Izinkan di pengaturan browser.');
-          else if (err.name === 'NotFoundError') alert('Kamera tidak ditemukan.');
+          else if (err.name === 'NotFoundError') alert('Kamera tidak ditemukan di perangkat ini.');
           else alert('Gagal membuka kamera: ' + err.message);
         });
       }
 
+      // ---- Stop Camera ----
       function stopRevisionCamera() {
         if (revCamState.stream) {
           revCamState.stream.getTracks().forEach(t => t.stop());
           revCamState.stream = null;
         }
         const video = document.getElementById('revisionVideo');
-        if (video) video.srcObject = null;
+        if (video) { video.srcObject = null; video.style.transform = ''; }
         const modal = document.getElementById('revisionCameraModal');
         if (modal) modal.classList.remove('camera-active');
         document.body.style.overflow = '';
       }
 
+      // ---- Capture Photo (dengan canvas crop untuk zoom) ----
       function captureRevisionPhoto() {
         const video = document.getElementById('revisionVideo');
         if (!video || !video.videoWidth) return;
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video, 0, 0);
-        revCamState.photoBase64 = canvas.toDataURL('image/jpeg', 0.85);
-        revCamState.photoUrl = revCamState.photoBase64;
 
-        const flash = document.getElementById('revCamFlashOverlay');
-        flash.style.opacity = '1';
-        setTimeout(() => { flash.style.opacity = '0'; }, 300);
+        const vw = video.videoWidth;
+        const vh = video.videoHeight;
+        const z  = revCamState.zoom;
+
+        const canvas = document.createElement('canvas');
+        canvas.width  = vw;
+        canvas.height = vh;
+        const ctx = canvas.getContext('2d');
+
+        if (revCamState.useHardwareZoom) {
+          ctx.drawImage(video, 0, 0, vw, vh);
+        } else if (z <= 1.01) {
+          ctx.drawImage(video, 0, 0, vw, vh);
+        } else {
+          const cropW = Math.round(vw / z);
+          const cropH = Math.round(vh / z);
+          const cropX = Math.round((vw - cropW) / 2);
+          const cropY = Math.round((vh - cropH) / 2);
+          ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, vw, vh);
+        }
+
+        revCamState.photoBase64 = canvas.toDataURL('image/jpeg', 0.88);
+        revCamState.photoUrl    = revCamState.photoBase64;
+        revCamState._photoTimestamp = new Date().toLocaleString('id-ID');
+
+        // Auto GPS saat foto diambil
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            pos => {
+              revCamState._photoLat = pos.coords.latitude.toFixed(6);
+              revCamState._photoLng = pos.coords.longitude.toFixed(6);
+            },
+            () => {},
+            { enableHighAccuracy: true, timeout: 8000 }
+          );
+        }
+
+        if (revCamState.flash) {
+          const fo = document.getElementById('revCamFlashOverlay');
+          fo.style.opacity = '1';
+          setTimeout(() => { fo.style.opacity = '0'; }, 150);
+        }
 
         document.getElementById('revCamPreviewImg').src = revCamState.photoUrl;
         document.getElementById('revCamPreviewOverlay').classList.remove('hidden');
       }
 
+      // ---- Confirm Photo (dual purpose: revision / dispute) ----
       function confirmRevisionPhoto() {
-        if (revCamState.parentScope) {
-          revCamState.parentScope.revisionNewPhoto = true;
-          revCamState.parentScope.revisionNewPhotoUrl = revCamState.photoUrl;
-          revCamState.parentScope.revisionNewPhotoBase64 = revCamState.photoBase64;
+        if (revCamState.parentScope && revCamState.parentScope._isDispute) {
+          // Dispute mode: simpan ke hidden input
+          document.getElementById('disputeEvidenceBase64').value = revCamState.photoBase64;
+          document.getElementById('disputePreviewImg').src = revCamState.photoUrl;
+          document.getElementById('disputePhotoPreview').classList.remove('hidden');
+          stopRevisionCamera();
+        } else {
+          // Revision mode: simpan ke Alpine scope
+          if (revCamState.parentScope) {
+            revCamState.parentScope.revisionNewPhoto = true;
+            revCamState.parentScope.revisionNewPhotoUrl = revCamState.photoUrl;
+            revCamState.parentScope.revisionNewPhotoBase64 = revCamState.photoBase64;
+          }
+          stopRevisionCamera();
         }
-        stopRevisionCamera();
       }
 
       function retakeRevisionPhoto() {
@@ -1129,13 +1365,80 @@
         startRevisionCamera(revCamState.parentScope);
       }
 
-      function updateRevZoomUI() {
-        const slider = document.getElementById('revCamZoomSlider');
-        const label = document.getElementById('revCamZoomValue');
-        if (slider) slider.value = revCamState.zoom;
-        if (label) label.textContent = revCamState.zoom.toFixed(1) + 'x';
-        const video = document.getElementById('revisionVideo');
-        if (video) video.style.transform = 'scale(' + revCamState.zoom + ')';
+      // ---- Tap-to-Focus ----
+      function _tapToFocus(e) {
+        const vf = document.getElementById('revCamViewfinder');
+        const ring = document.getElementById('revCamFocusRing');
+        if (!vf || !ring || !revCamState.stream) return;
+
+        const rect = vf.getBoundingClientRect();
+        const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+        const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+
+        ring.style.left  = x + 'px';
+        ring.style.top   = y + 'px';
+        ring.style.display = 'block';
+        ring.style.animation = 'none';
+        void ring.offsetWidth;
+        ring.style.animation = '';
+
+        setTimeout(() => { ring.style.display = 'none'; }, 700);
+
+        const track = revCamState.stream.getVideoTracks()[0];
+        if (track && track.getCapabilities) {
+          const caps = track.getCapabilities();
+          if (caps.focusMode && caps.focusMode.includes('manual')) {
+            const nx = x / rect.width;
+            const ny = y / rect.height;
+            track.applyConstraints({
+              advanced: [{ focusMode: 'manual', focusDistance: 0.5,
+                           pointsOfInterest: [{ x: nx, y: ny }] }]
+            }).catch(() => {});
+          }
+        }
+      }
+
+      // ---- Pinch-to-Zoom ----
+      function _setupGestures() {
+        const vf = document.getElementById('revCamViewfinder');
+        if (!vf) return;
+
+        vf.ontouchstart  = null;
+        vf.ontouchmove   = null;
+        vf.ontouchend    = null;
+        vf.onclick       = null;
+
+        vf.addEventListener('touchstart', e => {
+          if (e.touches.length === 2) {
+            revCamState._pinch.active    = true;
+            revCamState._pinch.startDist = Math.hypot(
+              e.touches[0].clientX - e.touches[1].clientX,
+              e.touches[0].clientY - e.touches[1].clientY
+            );
+            revCamState._pinch.startZoom = revCamState.zoom;
+          } else if (e.touches.length === 1) {
+            revCamState._pinch.active = false;
+          }
+        }, { passive: true });
+
+        vf.addEventListener('touchmove', e => {
+          if (!revCamState._pinch.active || e.touches.length !== 2) return;
+          const dist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+          const ratio = dist / revCamState._pinch.startDist;
+          _applyZoom(revCamState._pinch.startZoom * ratio);
+        }, { passive: true });
+
+        vf.addEventListener('touchend', e => {
+          if (e.touches.length < 2) revCamState._pinch.active = false;
+          if (e.changedTouches.length === 1 && !revCamState._pinch.active) {
+            _tapToFocus(e.changedTouches[0]);
+          }
+        }, { passive: true });
+
+        vf.addEventListener('click', e => { _tapToFocus(e); });
       }
 
       function closeRevisionForm() {
@@ -1146,40 +1449,10 @@
         window.location.reload();
       }
 
-      // ====== DISPUTE PHOTO CAMERA (simple inline) ======
+      // ====== DISPUTE PHOTO CAMERA ======
       function openDisputeCamera() {
-        // Gunakan startRevisionCamera dengan scope berbeda untuk sengketa
-        const disputeScope = {
-          onPhoto: function(url, base64) {
-            document.getElementById('disputeEvidenceBase64').value = base64;
-            document.getElementById('disputePreviewImg').src = url;
-            document.getElementById('disputePhotoPreview').classList.remove('hidden');
-          }
-        };
-        revCamState.parentScope = { _isDispute: true, _disputeScope: disputeScope };
-
-        const modal = document.getElementById('revisionCameraModal');
-        const video = document.getElementById('revisionVideo');
-        if (!modal || !video) { alert('Camera UI error'); return; }
-        if (revCamState.stream) {
-          revCamState.stream.getTracks().forEach(t => t.stop());
-          revCamState.stream = null;
-        }
-        modal.classList.add('camera-active');
-        document.body.style.overflow = 'hidden';
-        navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
-          audio: false
-        }).then(stream => {
-          revCamState.stream = stream;
-          video.srcObject = stream;
-          video.play();
-          document.getElementById('revCamPreviewOverlay').classList.add('hidden');
-        }).catch(err => {
-          modal.classList.remove('camera-active');
-          document.body.style.overflow = '';
-          alert('Gagal membuka kamera: ' + err.message);
-        });
+        revCamState.parentScope = { _isDispute: true };
+        startRevisionCamera(revCamState.parentScope);
       }
 
       function clearDisputePhoto() {
@@ -1188,23 +1461,7 @@
         document.getElementById('disputePhotoPreview').classList.add('hidden');
       }
 
-      // Override confirmRevisionPhoto untuk handle dispute mode
-      const _origConfirmRevisionPhoto = confirmRevisionPhoto;
-      function confirmRevisionPhoto() {
-        if (revCamState.parentScope && revCamState.parentScope._isDispute) {
-          revCamState.parentScope._disputeScope.onPhoto(revCamState.photoUrl, revCamState.photoBase64);
-          stopRevisionCamera();
-        } else {
-          if (revCamState.parentScope) {
-            revCamState.parentScope.revisionNewPhoto = true;
-            revCamState.parentScope.revisionNewPhotoUrl = revCamState.photoUrl;
-            revCamState.parentScope.revisionNewPhotoBase64 = revCamState.photoBase64;
-          }
-          stopRevisionCamera();
-        }
-      }
-
-      // Revision camera event listeners (runs immediately since DOM is ready)
+      // ---- Init Event Listeners ----
       (function() {
         document.getElementById('revCamCloseBtn').addEventListener('click', stopRevisionCamera);
         document.getElementById('revCamCaptureBtn').addEventListener('click', captureRevisionPhoto);
@@ -1215,22 +1472,30 @@
         document.getElementById('revCamGridBtn').addEventListener('click', function() {
           revCamState.grid = !revCamState.grid;
           document.getElementById('revCamGridOverlay').classList.toggle('hidden', !revCamState.grid);
-          this.style.backgroundColor = revCamState.grid ? 'rgba(59, 130, 246, 0.5)' : 'rgba(0,0,0,0.4)';
+          this.style.backgroundColor = revCamState.grid ? 'rgba(59,130,246,0.6)' : 'rgba(0,0,0,0.4)';
         });
 
         document.getElementById('revCamFlashBtn').addEventListener('click', function() {
           revCamState.flash = !revCamState.flash;
-          this.style.backgroundColor = revCamState.flash ? 'rgba(59, 130, 246, 0.5)' : 'rgba(0,0,0,0.4)';
+          this.style.backgroundColor = revCamState.flash ? 'rgba(251,191,36,0.7)' : 'rgba(0,0,0,0.4)';
+          this.title = revCamState.flash ? 'Flash: ON' : 'Flash: OFF';
+          if (revCamState.stream) {
+            const track = revCamState.stream.getVideoTracks()[0];
+            if (track && track.getCapabilities && track.getCapabilities().torch) {
+              track.applyConstraints({ advanced: [{ torch: revCamState.flash }] }).catch(() => {});
+            }
+          }
         });
 
         document.getElementById('revCamZoomSlider').addEventListener('input', function() {
-          revCamState.zoom = parseFloat(this.value);
-          updateRevZoomUI();
-          const zoomLabel = document.getElementById('revCamZoomLabel');
-          zoomLabel.classList.remove('hidden');
-          zoomLabel.textContent = revCamState.zoom.toFixed(1) + 'x';
-          clearTimeout(zoomLabel._timeout);
-          zoomLabel._timeout = setTimeout(() => zoomLabel.classList.add('hidden'), 1000);
+          _applyZoom(parseFloat(this.value));
+        });
+
+        let lastTap = 0;
+        document.getElementById('revCamCaptureBtn').addEventListener('touchend', e => {
+          const now = Date.now();
+          if (now - lastTap < 300) captureRevisionPhoto();
+          lastTap = now;
         });
       })();
 
@@ -1240,7 +1505,7 @@
         const reasonTextarea = document.querySelector('textarea[name="reason"]');
 
         if (!evidenceInput || !evidenceInput.value || evidenceInput.value.trim() === '') {
-          alert('Foto bukti wajib dilampirkan untuk pengajuan sengketa. Tekan "Ambil Foto Bukti".');
+          alert('Foto bukti wajib dilampirkan untuk pengajuan sengketa. Ambil foto dari kamera.');
           return;
         }
         if (!reasonTextarea || reasonTextarea.value.trim().length < 20) {
@@ -1248,7 +1513,6 @@
           reasonTextarea && reasonTextarea.focus();
           return;
         }
-        // Cari form sengketa dan submit
         const btn = event.target;
         const form = btn.closest('form');
         if (form) form.submit();

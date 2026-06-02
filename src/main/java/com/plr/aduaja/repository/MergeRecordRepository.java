@@ -19,4 +19,8 @@ public interface MergeRecordRepository extends JpaRepository<MergeRecord, String
     List<MergeRecord> findByIsActiveTrue();
 
     Optional<MergeRecord> findByParentReportReportIdAndChildReportReportIdAndIsActiveTrue(String parentReportId, String childReportId);
+
+    Optional<MergeRecord> findByChildReportReportIdAndIsActiveTrue(String childReportId);
+
+    List<MergeRecord> findByParentReportReportIdAndIsActiveTrue(String parentReportId);
 }

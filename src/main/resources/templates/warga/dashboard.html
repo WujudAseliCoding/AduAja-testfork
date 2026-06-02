@@ -6,6 +6,10 @@
 >
   <th:block layout:fragment="extraHead">
     <title>AduAja - Dashboard Warga</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+      #devMap { height: 200px; z-index: 1; border-radius: 0.5rem; }
+    </style>
   </th:block>
 
   <div layout:fragment="content" class="min-h-screen bg-gray-50">
@@ -154,6 +158,98 @@
         </div>
       </div>
 
+      <!-- DEV MODE: Generate test reports -->
+      <div th:if="${devMode}" class="mb-8 p-4 sm:p-6 rounded-xl border-2 border-dashed border-amber-300 bg-amber-50"
+           x-data="devModeForm()" x-init="initDevMap()">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="px-2 py-0.5 bg-amber-500 text-white text-xs font-bold rounded uppercase tracking-wider">Dev Mode</span>
+          <h3 class="text-lg font-semibold text-amber-900">Generate Laporan Uji Coba</h3>
+        </div>
+        <form th:action="@{/warga/generate-test-reports}" method="post"
+              class="space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Jumlah -->
+            <div>
+              <label for="generateCount" class="block text-sm font-medium text-amber-800 mb-1">Jumlah Laporan</label>
+              <input id="generateCount" name="count" type="number" min="1" max="20" value="5"
+                     class="w-full sm:w-24 px-3 py-2 border border-amber-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-amber-400 focus:border-amber-400" />
+            </div>
+
+            <!-- Kategori -->
+            <div>
+              <label for="categoryId" class="block text-sm font-medium text-amber-800 mb-1">Kategori</label>
+              <select id="categoryId" name="categoryId"
+                      class="w-full px-3 py-2 border border-amber-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-amber-400 focus:border-amber-400">
+                <option value="">-- Acak --</option>
+                <option th:each="cat : ${categories}"
+                        th:value="${cat.categoryId}"
+                        th:text="${cat.categoryName}">Kategori</option>
+              </select>
+            </div>
+
+            <!-- Lokasi -->
+            <div>
+              <label for="locationMode" class="block text-sm font-medium text-amber-800 mb-1">Lokasi</label>
+              <select id="locationMode" name="locationMode" x-model="locationMode"
+                      class="w-full px-3 py-2 border border-amber-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-amber-400 focus:border-amber-400">
+                <option value="RANDOM">Acak dari daftar kota</option>
+                <option value="MY_LOCATION" x-bind:disabled="!hasProfileCoords">Lokasi Saya (dari profil)</option>
+                <option value="MEDAN">Medan</option>
+                <option value="PEKANBARU">Pekanbaru</option>
+                <option value="TANJUNGPINANG">Tanjungpinang</option>
+                <option value="CUSTOM">Kustom (isi koordinat)</option>
+              </select>
+              <p x-show="!hasProfileCoords" class="text-xs text-amber-600 mt-1">Atur domisili di halaman profil untuk gunakan Lokasi Saya</p>
+            </div>
+          </div>
+
+          <!-- Custom coordinates with Leaflet map (shown when CUSTOM selected) -->
+          <div x-show="locationMode === 'CUSTOM'" x-cloak x-transition
+               class="space-y-3 p-3 bg-amber-100/50 rounded-lg">
+            <div id="devMap" class="rounded-lg border border-amber-300"></div>
+            <div class="flex gap-3">
+              <button type="button" @click="getDevLocation()"
+                      class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors inline-flex items-center gap-2">
+                <i data-lucide="map-pin" class="w-4 h-4"></i>
+                <span x-text="loadingGps ? 'Mengambil lokasi...' : 'Ambil Koordinat GPS'"></span>
+              </button>
+            </div>
+            <div class="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <p class="text-amber-800 font-medium mb-1">Latitude:</p>
+                <input type="text" x-model="customLat" readonly
+                       class="w-full px-3 py-2 border border-amber-300 rounded-lg bg-white font-mono text-sm" />
+              </div>
+              <div>
+                <p class="text-amber-800 font-medium mb-1">Longitude:</p>
+                <input type="text" x-model="customLng" readonly
+                       class="w-full px-3 py-2 border border-amber-300 rounded-lg bg-white font-mono text-sm" />
+              </div>
+            </div>
+            <div>
+              <label for="customRegionId" class="block text-xs font-medium text-amber-800 mb-1">Wilayah (Kecamatan)</label>
+              <select id="customRegionId" name="regionId"
+                      class="w-full px-3 py-2 border border-amber-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-amber-400 focus:border-amber-400">
+                <option value="">-- Pilih Wilayah --</option>
+                <option th:each="r : ${regions}"
+                        th:if="${r.regionLevel.name() == 'KECAMATAN'}"
+                        th:value="${r.regionId}"
+                        th:text="${r.regionName}">Kecamatan</option>
+              </select>
+              <p class="text-xs text-amber-600 mt-1">Pilih kecamatan agar laporan masuk ke admin daerah yang tepat</p>
+            </div>
+            <input type="hidden" name="customLat" x-model="customLat" />
+            <input type="hidden" name="customLng" x-model="customLng" />
+          </div>
+
+          <button type="submit"
+                  class="px-6 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg transition-colors inline-flex items-center gap-2">
+            <i data-lucide="zap" class="w-4 h-4"></i>
+            Generate Laporan
+          </button>
+        </form>
+      </div>
+
       <div>
         <div class="flex justify-between items-center mb-4">
           <h3 class="text-lg font-semibold text-gray-900">Laporan Terbaru</h3>
@@ -242,4 +338,62 @@
       </div>
     </main>
   </div>
+
+  <th:block layout:fragment="extraScripts">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+      function devModeForm() {
+        return {
+          locationMode: 'RANDOM',
+          hasProfileCoords: /*[[${userProfile != null && userProfile.domisiliLatitude != null}]]*/ false,
+          customLat: '',
+          customLng: '',
+          devMap: null,
+          devMarker: null,
+          loadingGps: false,
+
+          initDevMap() {
+            setTimeout(() => {
+              this.devMap = L.map('devMap').setView([3.5952, 98.6722], 13);
+              L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+              }).addTo(this.devMap);
+              this.devMap.on('click', (e) => this.setDevMarker(e.latlng.lat, e.latlng.lng));
+              setTimeout(() => { this.devMap.invalidateSize(); }, 300);
+              this.$watch('locationMode', (val) => {
+                if (val === 'CUSTOM' && this.devMap) {
+                  setTimeout(() => this.devMap.invalidateSize(), 150);
+                }
+              });
+            }, 200);
+          },
+
+          setDevMarker(lat, lng) {
+            this.customLat = lat.toFixed(6);
+            this.customLng = lng.toFixed(6);
+            if (this.devMarker) { this.devMarker.setLatLng([lat, lng]); }
+            else {
+              this.devMarker = L.marker([lat, lng], { draggable: true }).addTo(this.devMap);
+              this.devMarker.on('dragend', (e) => {
+                this.customLat = e.target.getLatLng().lat.toFixed(6);
+                this.customLng = e.target.getLatLng().lng.toFixed(6);
+              });
+            }
+            this.devMap.setView([lat, lng], 15);
+          },
+
+          getDevLocation() {
+            this.loadingGps = true;
+            if (navigator.geolocation) {
+              navigator.geolocation.getCurrentPosition(
+                (pos) => { this.setDevMarker(pos.coords.latitude, pos.coords.longitude); this.loadingGps = false; },
+                (err) => { alert('Gagal mengambil lokasi. Pastikan GPS aktif.'); this.loadingGps = false; },
+                { enableHighAccuracy: true }
+              );
+            } else { alert('Browser tidak mendukung Geolocation.'); this.loadingGps = false; }
+          }
+        };
+      }
+    </script>
+  </th:block>
 </html>

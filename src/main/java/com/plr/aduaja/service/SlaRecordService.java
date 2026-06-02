@@ -27,4 +27,7 @@ public interface SlaRecordService {
     SlaRecord resumeSla(String slaId);
     SlaRecord completeSla(String slaId);
     void checkAndUpdateOverdueSla();
+
+    // FR-ESK-03: Mark overdue SLA as reviewed
+    SlaRecord markOverdueReviewed(String slaId, String notes);
 }

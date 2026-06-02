@@ -1,5 +1,6 @@
 package com.plr.aduaja.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -11,6 +12,7 @@ import java.util.List;
 // ============================================================
 @Entity
 @Table(name = "users")
+@JsonIgnoreProperties({"reports"})
 public class User extends BaseEntity {  // ← INHERITANCE sejati
 
     // ENKAPSULASI: field private
@@ -25,7 +27,7 @@ public class User extends BaseEntity {  // ← INHERITANCE sejati
     @Column(nullable = false, unique = true, length = 150)
     private String email;
 
-    @Column(name = "phone_number", unique = true, length = 20)
+    @Column(name = "phone_number", unique = false, length = 20) // FIX SCN-13: phone_number tidak harus unique - seorang bisa punya akun warga dan petugas
     private String phoneNumber;
 
     // ENKAPSULASI: passwordHash tidak bisa diakses langsung

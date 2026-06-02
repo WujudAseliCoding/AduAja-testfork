@@ -87,31 +87,57 @@
       </div>
 
       <div class="space-y-4">
-        <div
-          class="grid w-full grid-cols-2 lg:w-auto bg-gray-100 text-gray-700 rounded-xl p-1"
-        >
+        <!-- Navigasi utama admin dinas -->
+        <div class="flex flex-wrap gap-2">
           <button
             x-on:click="setTab('penugasan')"
-            :class="activeTab === 'penugasan' ? 'aduaja-tab-active' : ''"
-            class="flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium"
+            :class="activeTab === 'penugasan' ? 'bg-white shadow-sm text-blue-700 border border-blue-200' : 'text-gray-600 hover:bg-white hover:shadow-sm'"
+            class="flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all"
           >
             <i data-lucide="user-plus" class="w-4 h-4"></i>
             Penugasan Petugas
           </button>
-          <button
-            x-on:click="setTab('sengketa')"
-            :class="activeTab === 'sengketa' ? 'aduaja-tab-active' : ''"
-            class="flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium"
+          <a
+            th:href="@{/admin/dinas/sengketa}"
+            class="flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 transition-all"
           >
             <i data-lucide="alert-triangle" class="w-4 h-4"></i>
             Sengketa
-          </button>
+          </a>
+          <!-- Navigasi ke halaman Progress & SLA -->
+          <a
+            th:href="@{/admin/dinas/progress}"
+            class="relative flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium bg-yellow-50 text-yellow-800 border border-yellow-200 hover:bg-yellow-100 transition-all"
+          >
+            <i data-lucide="timer" class="w-4 h-4"></i>
+            Progress &amp; SLA
+            <!-- Badge: jumlah penundaan menunggu -->
+            <span th:if="${pendingPostponementCount > 0}"
+                  class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-bold"
+                  th:text="${pendingPostponementCount}"></span>
+          </a>
           <a
             th:href="@{/admin/dinas/petugas}"
-            class="flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium bg-blue-100 text-blue-700 hover:bg-blue-200"
+            class="flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-all"
           >
             <i data-lucide="users" class="w-4 h-4"></i>
             Kelola Petugas
+          </a>
+        </div>
+
+        <!-- Alert: penundaan menunggu persetujuan -->
+        <div th:if="${pendingPostponementCount > 0}"
+             class="flex items-center gap-3 p-4 rounded-xl bg-orange-50 border border-orange-200">
+          <i data-lucide="clock" class="w-5 h-5 text-orange-500 flex-shrink-0"></i>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-orange-900">
+              <span th:text="${pendingPostponementCount}">0</span> permintaan penundaan menunggu persetujuan Anda
+            </p>
+            <p class="text-xs text-orange-700 mt-0.5">Petugas mengajukan jeda tugas — setujui untuk pause SLA otomatis atau tolak agar tugas tetap berjalan.</p>
+          </div>
+          <a th:href="@{/admin/dinas/progress}"
+             class="flex-shrink-0 px-3 py-1.5 bg-orange-500 text-white text-xs font-semibold rounded-lg hover:bg-orange-600 whitespace-nowrap">
+            Kelola Sekarang
           </a>
         </div>
 
@@ -184,25 +210,6 @@
                 <p class="text-sm">Tidak ada laporan yang perlu ditugaskan</p>
               </div>
             </div>
-          </div>
-        </section>
-
-        <section x-show="activeTab === 'sengketa'" x-cloak>
-          <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-            <h2 class="text-lg font-semibold text-gray-900 mb-2">
-              Resolusi Sengketa
-            </h2>
-            <p class="text-sm text-gray-600 mb-4">
-              Kelola sengketa yang masuk dari warga dan lakukan evaluasi
-              berdasarkan bukti foto.
-            </p>
-            <a
-              th:href="@{/admin/dinas/sengketa}"
-              class="inline-flex items-center gap-2 bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-700"
-            >
-              <i data-lucide="scale" class="w-4 h-4"></i>
-              Buka Panel Resolusi Sengketa
-            </a>
           </div>
         </section>
       </div>

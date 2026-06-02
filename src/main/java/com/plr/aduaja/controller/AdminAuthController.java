@@ -81,6 +81,10 @@ public class AdminAuthController {
         if (user.getRole() == User.Role.ADMIN_DINAS && user.getAgency() != null) {
             session.setAttribute(ControllerHelper.SESSION_AGENCY_ID, user.getAgency().getAgencyId());
             session.setAttribute(ControllerHelper.SESSION_AGENCY_NAME, user.getAgency().getAgencyName());
+            if (user.getAgency().getRegion() != null) {
+                session.setAttribute(ControllerHelper.SESSION_REGION_ID, user.getAgency().getRegion().getRegionId());
+                session.setAttribute(ControllerHelper.SESSION_REGION_NAME, user.getAgency().getRegion().getRegionName());
+            }
         }
 
         if (user.getRole() == User.Role.ADMIN_PUSAT && user.getRegion() != null) {

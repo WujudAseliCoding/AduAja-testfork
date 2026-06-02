@@ -16,6 +16,7 @@ public class CreateReportDTO {
     private String photoBase64;
     private String categoryId;
     private String regionId;
+    private String photoTakenAt;  // ISO-8601 string from EXIF or client timestamp
 
     // ENKAPSULASI: Hanya getter & setter
     public String getDescription() { return description; }
@@ -38,4 +39,7 @@ public class CreateReportDTO {
 
     public String getRegionId() { return regionId; }
     public void setRegionId(String regionId) { this.regionId = regionId; }
+
+    public String getPhotoTakenAt() { return photoTakenAt; }
+    public void setPhotoTakenAt(String photoTakenAt) { this.photoTakenAt = photoTakenAt; }
 }

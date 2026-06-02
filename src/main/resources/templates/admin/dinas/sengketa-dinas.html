@@ -74,8 +74,10 @@
               <tbody class="bg-white divide-y divide-gray-200">
                 <tr
                   th:each="dispute : ${disputes}"
-                  class="hover:bg-gray-50"
+                  class="hover:bg-gray-50 cursor-pointer"
                   th:classappend="${selectedDispute != null && selectedDispute['id'] == dispute['id']} ? 'bg-orange-50' : ''"
+                  th:data-dispute-id="${dispute['id']}"
+                  onclick="window.location.href=this.querySelector('.detail-link').href"
                 >
                   <td class="px-6 py-4 whitespace-nowrap font-mono text-sm font-semibold text-orange-600" th:text="${dispute['id']}"></td>
                   <td class="px-6 py-4 whitespace-nowrap font-mono text-sm text-blue-600" th:text="${dispute['ticketId']}"></td>
@@ -92,7 +94,7 @@
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600" th:text="${dispute['tanggalSengketa']}"></td>
                   <td class="px-6 py-4 whitespace-nowrap text-right">
-                    <a th:href="@{/admin/dinas/sengketa(id=${dispute['id']})}" class="text-blue-600 hover:text-blue-900 text-sm font-semibold">Lihat Detail</a>
+                    <a th:href="@{/admin/dinas/sengketa(id=${dispute['id']}, fragment='detailPanel')}" class="detail-link text-blue-600 hover:text-blue-900 text-sm font-semibold">Lihat Detail</a>
                   </td>
                 </tr>
               </tbody>
@@ -106,7 +108,7 @@
       </div>
 
       <!-- Detail & Resolution Panel (shown when a dispute is selected) -->
-      <div th:if="${selectedDispute != null}" class="aduaja-panel">
+      <div th:if="${selectedDispute != null}" id="detailPanel" class="aduaja-panel">
         <div class="aduaja-card-header">
           <h2 class="aduaja-card-title">
             <i data-lucide="search" class="w-5 h-5"></i>
@@ -180,7 +182,7 @@
                     <h4 class="font-semibold text-gray-900">Foto Bukti Perbaikan Petugas</h4>
                   </div>
                   <div class="relative border-2 border-green-200 rounded-lg overflow-hidden bg-green-50">
-                    <img th:src="${selectedDispute['fotoBuktiPerbaikan']}" alt="Foto bukti perbaikan" class="w-full h-64 object-cover" />
+                    <img th:src="${selectedDispute['fotoBuktiPerbaikan']}" alt="Foto bukti perbaikan" class="w-full h-64 object-cover cursor-pointer" data-lightbox data-lightbox-group="sengketa-dinas" />
                     <div class="absolute bottom-0 left-0 right-0 bg-green-600 text-white px-3 py-2 text-xs font-semibold">
                       Diunggah oleh Petugas
                     </div>
@@ -198,7 +200,7 @@
                     <h4 class="font-semibold text-gray-900">Foto Komplain Warga</h4>
                   </div>
                   <div class="relative border-2 border-red-200 rounded-lg overflow-hidden bg-red-50">
-                    <img th:src="${selectedDispute['fotoBuktiSengketa']}" alt="Foto bukti sengketa" class="w-full h-64 object-cover" />
+                    <img th:src="${selectedDispute['fotoBuktiSengketa']}" alt="Foto bukti sengketa" class="w-full h-64 object-cover cursor-pointer" data-lightbox data-lightbox-group="sengketa-dinas" />
                     <div class="absolute bottom-0 left-0 right-0 bg-red-600 text-white px-3 py-2 text-xs font-semibold">
                       Diunggah oleh Warga
                     </div>
@@ -245,21 +247,17 @@
                   </div>
                 </div>
 
-                <!-- Tombol Keputusan (PALING BAWAH) -->
+                <!-- Tombol Keputusan (PALING BAWAH) — FR-RSL-12 -->
                 <div>
                   <p class="font-semibold mb-3 text-gray-900">Pilih Keputusan</p>
-                  <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <button type="button" x-on:click="showReassignModal = true" class="aduaja-btn-primary bg-green-600 hover:bg-green-700 flex items-center justify-center gap-2 py-3">
                       <i data-lucide="check" class="w-4 h-4"></i>
-                      <span>Sengketa Diterima - Perbaiki Ulang</span>
+                      <span>Tugaskan Kembali - Perbaiki Ulang</span>
                     </button>
                     <button name="keputusan" value="ditolak" type="submit" class="aduaja-btn-primary bg-red-600 hover:bg-red-700 flex items-center justify-center gap-2 py-3">
                       <i data-lucide="x" class="w-4 h-4"></i>
-                      <span>Sengketa Ditolak - Tiket Selesai</span>
-                    </button>
-                    <button name="keputusan" value="review" type="submit" class="aduaja-btn-primary bg-yellow-600 hover:bg-yellow-700 flex items-center justify-center gap-2 py-3">
-                      <i data-lucide="eye" class="w-4 h-4"></i>
-                      <span>Perlu Tinjauan Lanjutan</span>
+                      <span>Tutup Laporan - Tolak Komplain</span>
                     </button>
                   </div>
                 </div>
@@ -270,14 +268,14 @@
       </div>
 
       <!-- Reassignment Modal (shown when Sengketa Diterima) -->
-      <div x-show="showReassignModal" x-cloak class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div th:if="${selectedDispute != null}" x-show="showReassignModal" x-cloak class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden">
           <div class="bg-green-600 px-6 py-4">
             <h3 class="text-lg font-bold text-white flex items-center gap-2">
               <i data-lucide="user-plus" class="w-5 h-5"></i>
               Tugaskan Petugas Baru
             </h3>
-            <p class="text-green-100 text-sm mt-1">Sengketa diterima. Pilih petugas berbeda untuk perbaikan ulang.</p>
+            <p class="text-green-100 text-sm mt-1">Sengketa diterima. Pilih petugas untuk perbaikan ulang. Petugas sebelumnya (<span th:text="${originalPetugasNama}" class="font-semibold"></span>) disarankan diganti, tetapi tetap bisa dipilih sebagai pilihan terakhir.</p>
           </div>
 
           <div class="p-6 space-y-4">
@@ -309,13 +307,10 @@
                   <option
                     th:each="p : ${availablePetugasForReassignment}"
                     th:value="${p['id']}"
-                    th:text="${p['nama']} + ' (' + ${p['statusKetersediaan']} + ')'"
+                    th:text="${p['isOriginalPetugas'] ? p['nama'] + ' (Pilihan Terakhir)' : p['nama'] + ' (' + p['statusKetersediaan'] + ')'}"
+                    th:style="${p['isOriginalPetugas']} ? 'background-color: #fef3c7; font-weight: 600;' : ''"
                   ></option>
                 </select>
-                <p class="mt-2 text-xs text-amber-600 flex items-center gap-1">
-                  <i data-lucide="alert-triangle" class="w-3 h-3"></i>
-                  Petugas sebelumnya (<span th:text="${originalPetugasNama}"></span>) tidak ditampilkan agar penugasan berbeda.
-                </p>
               </div>
 
               <div>

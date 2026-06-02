@@ -6,6 +6,7 @@ import com.plr.aduaja.dto.MergeDTO;
 import com.plr.aduaja.model.*;
 import com.plr.aduaja.model.Report.ReportStatus;
 import com.plr.aduaja.repository.ReportCategoryRepository;
+import com.plr.aduaja.repository.ReportRepository;
 import com.plr.aduaja.repository.UserRepository;
 import com.plr.aduaja.service.*;
 import jakarta.servlet.http.HttpSession;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -58,6 +60,9 @@ public class AdminPusatController {
     private ReportCategoryRepository reportCategoryRepository;
 
     @Autowired
+    private ReportRepository reportRepository;
+
+    @Autowired
     private SlaRecordService slaRecordService;
 
     @Autowired
@@ -81,7 +86,9 @@ public class AdminPusatController {
             HttpSession session,
             @RequestParam(value = "role", required = false, defaultValue = "admin_pusat") String role,
             @RequestParam(value = "tab", required = false, defaultValue = "queue") String tab,
-            @RequestParam(value = "id", required = false) String id
+            @RequestParam(value = "id", required = false) String id,
+            @RequestParam(value = "page", required = false, defaultValue = "1") int page,
+            @RequestParam(value = "size", required = false, defaultValue = "20") int size
     ) {
         // SESSION CHECK — semua halaman admin harus login
         String sessionUserId = ControllerHelper.requireAnyAdminSession(session);
@@ -92,7 +99,7 @@ public class AdminPusatController {
 
         if ("admin_dinas".equalsIgnoreCase(role)) {
             model.addAttribute("dinasName", "Dinas Pekerjaan Umum");
-            long diterima = reportService.countByStatus(Report.ReportStatus.DIDISPOSISI);
+            long diterima = reportService.countByStatus(Report.ReportStatus.DALAM_PENINJAUAN);
             long diproses = fieldTaskService.countByStatus(FieldTask.TaskStatus.SEDANG_DIKERJAKAN);
             long baru = fieldTaskService.countByStatus(FieldTask.TaskStatus.BARU);
             long selesai = fieldTaskService.countByStatus(FieldTask.TaskStatus.SELESAI);
@@ -137,14 +144,14 @@ public class AdminPusatController {
             }).collect(Collectors.toList());
             model.addAttribute("availablePetugas", petugasList.isEmpty() ? new ArrayList<>() : petugasList);
         } else {
-            long laporanMasuk = regionId != null ? reportService.countByStatusAndRegion(Report.ReportStatus.MENUNGGU_VALIDASI, regionId) : reportService.countByStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
+            long laporanMasuk = regionId != null ? reportService.countByStatusAndRegion(Report.ReportStatus.MENUNGGU_VERIFIKASI, regionId) : reportService.countByStatus(Report.ReportStatus.MENUNGGU_VERIFIKASI);
             long menungguValidasi = laporanMasuk;
-            long dalamAntreanDinas = regionId != null ? reportService.countByStatusAndRegion(Report.ReportStatus.DIVALIDASI, regionId) : reportService.countByStatus(Report.ReportStatus.DIVALIDASI);
+            long dalamAntreanDinas = regionId != null ? reportService.countByStatusAndRegion(Report.ReportStatus.DITERIMA, regionId) : reportService.countByStatus(Report.ReportStatus.DITERIMA);
             long selesaiHariIni = regionId != null ? reportService.countByStatusAndRegion(Report.ReportStatus.SELESAI, regionId) : reportService.countByStatus(Report.ReportStatus.SELESAI);
             List<Map<String, Object>> stats = new ArrayList<>();
             stats.add(Map.of("title", "Laporan Masuk", "value", laporanMasuk,
                     "icon", "file", "bgColor", "bg-blue-100", "color", "text-blue-600"));
-            stats.add(Map.of("title", "Menunggu Validasi", "value", menungguValidasi,
+            stats.add(Map.of("title", "Menunggu Konfirmasi Warga", "value", menungguValidasi,
                     "icon", "clock", "bgColor", "bg-yellow-100", "color", "text-yellow-600"));
             stats.add(Map.of("title", "Dalam Antrean Dinas", "value", dalamAntreanDinas,
                     "icon", "alert-triangle", "bgColor", "bg-red-100", "color", "text-red-600"));
@@ -161,8 +168,12 @@ public class AdminPusatController {
         panels.add(Map.of("title", "Sengketa", "description", "Kelola banding dan resolusi sengketa (FR-RSL-09 s/d 13)", "icon", "scale", "color", "bg-orange-100 text-orange-600", "href", "/admin/sengketa"));
         model.addAttribute("panels", panels);
 
-        List<Map<String, Object>> queueReports = getQueueList(regionId);
-        model.addAttribute("queueReports", queueReports);
+        Map<String, Object> queueResult = getQueueList(regionId, page, size);
+        model.addAttribute("queueReports", queueResult.get("items"));
+        model.addAttribute("currentPage", queueResult.get("page"));
+        model.addAttribute("totalPages", queueResult.get("totalPages"));
+        model.addAttribute("totalItems", queueResult.get("totalItems"));
+        model.addAttribute("pageSize", size);
 
         // Riwayat laporan yang ditolak (Issue 4)
         List<Report> rejectedReports = regionId != null ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.DITOLAK, regionId) : reportService.getReportsByStatus(Report.ReportStatus.DITOLAK);
@@ -193,8 +204,8 @@ public class AdminPusatController {
         model.addAttribute("selectedReport", selected);
 
         List<MergeRecord> activeMerges = getActiveMerges();
-        Set<String> mergedChildIds = getMergedChildIds(activeMerges);
-        List<Report> mergeCandidates = regionId != null ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.MENUNGGU_VALIDASI, regionId) : reportService.getReportsByStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
+        Set<String> mergedChildIds = getAllActiveChildIds();
+        List<Report> mergeCandidates = regionId != null ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.MENUNGGU_VERIFIKASI, regionId) : reportService.getReportsByStatus(Report.ReportStatus.MENUNGGU_VERIFIKASI);
         List<Map<String, Object>> mergeTickets = mergeCandidates.stream()
             .filter(r -> !mergedChildIds.contains(r.getReportId()))
             .map(this::toMergeTicketMap)
@@ -205,7 +216,7 @@ public class AdminPusatController {
         model.addAttribute("hiddenChildCount", mergedChildIds.size());
 
         List<Map<String, Object>> disposisiReports = new ArrayList<>();
-        List<Report> validated = regionId != null ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.DIVALIDASI, regionId) : reportService.getReportsByStatus(Report.ReportStatus.DIVALIDASI);
+        List<Report> validated = regionId != null ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.DITERIMA, regionId) : reportService.getReportsByStatus(Report.ReportStatus.DITERIMA);
         for (Report r : validated) {
             Map<String, Object> m = new HashMap<>();
             m.put("id", r.getReportId());
@@ -295,7 +306,7 @@ public class AdminPusatController {
             }
             if (selectedReport == null) {
                 Report r = reportService.findById(id.trim()).orElse(null);
-                if (r != null && r.getStatus() == ReportStatus.DIVALIDASI) {
+                if (r != null && r.getStatus() == ReportStatus.DITERIMA) {
                     selectedReport = toAdminValidationMap(r);
                     selectedReport.put("status", "Tervalidasi");
                     isInDisposisi = true;
@@ -430,12 +441,22 @@ public class AdminPusatController {
     // ==========================================
 
     @GetMapping("/admin/laporan-queue")
-    public String adminLaporanQueue(Model model, HttpSession session) {
+    public String adminLaporanQueue(
+            Model model,
+            HttpSession session,
+            @RequestParam(value = "page", required = false, defaultValue = "1") int page,
+            @RequestParam(value = "size", required = false, defaultValue = "20") int size
+    ) {
         // SESSION CHECK
         if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
 
         String regionId = ControllerHelper.getSessionRegionId(session);
-        model.addAttribute("queueReports", getQueueList(regionId));
+        Map<String, Object> queueResult = getQueueList(regionId, page, size);
+        model.addAttribute("queueReports", queueResult.get("items"));
+        model.addAttribute("currentPage", queueResult.get("page"));
+        model.addAttribute("totalPages", queueResult.get("totalPages"));
+        model.addAttribute("totalItems", queueResult.get("totalItems"));
+        model.addAttribute("pageSize", size);
         return "admin/laporan-queue";
     }
 
@@ -447,7 +468,9 @@ public class AdminPusatController {
     public String adminValidationPanel(
             Model model,
             HttpSession session,
-            @RequestParam(value = "id", required = false) String id
+            @RequestParam(value = "id", required = false) String id,
+            @RequestParam(value = "page", required = false, defaultValue = "1") int page,
+            @RequestParam(value = "size", required = false, defaultValue = "20") int size
     ) {
         // SESSION CHECK
         if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
@@ -456,6 +479,10 @@ public class AdminPusatController {
         List<Map<String, Object>> reports = getAdminValidationList(regionId);
         model.addAttribute("reports", reports);
         model.addAttribute("pendingCount", reports.size());
+        model.addAttribute("currentPage", 1);
+        model.addAttribute("totalPages", 1);
+        model.addAttribute("totalItems", reports.size());
+        model.addAttribute("pageSize", reports.size());
 
         Map<String, Object> selected = null;
         if (id != null && !reports.isEmpty()) {
@@ -488,10 +515,18 @@ public class AdminPusatController {
                 : (rejectionReason != null && !rejectionReason.trim().isEmpty() ? rejectionReason.trim() : null);
 
         if (ticketId == null || ticketId.isEmpty() || normalizedAction == null) {
-            return "redirect:/admin/dashboard?tab=queue";
+            return "redirect:/admin/validation";
         }
 
-        String redirectUrl = "redirect:/admin/validation" + (ticketId != null ? "?id=" + ticketId : "");
+        // Cegah validasi langsung pada child ticket yang sudah digabungkan
+        java.util.Optional<Report> targetReport = reportService.findById(ticketId);
+        if (targetReport.isPresent() && targetReport.get().getStatus() == Report.ReportStatus.TERGABUNG) {
+            redirectAttributes.addFlashAttribute("error", "Laporan yang sudah digabungkan tidak dapat divalidasi secara langsung.");
+            return "redirect:/admin/validation";
+        }
+
+        // Default redirect ke halaman validation
+        String redirectUrl = "redirect:/admin/validation";
 
         try {
             ReportStatus newStatus;
@@ -499,21 +534,43 @@ public class AdminPusatController {
             String notifMsg;
 
             if ("approved".equals(normalizedAction) || "approve".equals(normalizedAction)) {
-                newStatus = ReportStatus.DIVALIDASI;
+                newStatus = ReportStatus.DITERIMA;
                 notifTitle = "Laporan Divalidasi";
-                notifMsg = "Laporan Anda nomor " + ticketId + " telah divalidasi.";
-                redirectUrl = "redirect:/admin/dashboard?tab=disposisi&id=" + ticketId;
+                notifMsg = "Laporan Anda telah divalidasi dan akan segera diteruskan ke dinas terkait.";
+                // FIX SCN-01 (2.7): Redirect ke panel disposisi setelah approve
+                redirectUrl = "redirect:/admin/disposisi?id=" + ticketId;
             } else if ("revision".equals(normalizedAction)) {
-                newStatus = ReportStatus.PERLU_REVISI;
+                newStatus = ReportStatus.MENUNGGU_REVISI;
                 notifTitle = "Laporan Perlu Revisi";
-                notifMsg = "Laporan Anda nomor " + ticketId + " perlu direvisi." + (note != null ? " Catatan: " + note : "");
+                notifMsg = "Laporan Anda perlu direvisi." + (note != null ? " Catatan: " + note : "");
+                // FIX SCN-03 (2.6): Redirect ke validation panel (bukan URL kosong)
+                redirectUrl = "redirect:/admin/validation";
             } else {
+                // rejected
                 newStatus = ReportStatus.DITOLAK;
                 notifTitle = "Laporan Ditolak";
-                notifMsg = "Laporan Anda nomor " + ticketId + " ditolak." + (note != null ? " Alasan: " + note : "");
+                notifMsg = "Laporan Anda ditolak." + (note != null ? " Alasan: " + note : "");
+                // FIX SCN-02 (2.7): Redirect ke halaman validation setelah tolak
+                redirectUrl = "redirect:/admin/validation";
             }
 
-            Report r = reportService.updateStatus(ticketId, newStatus, note, adminId);
+            // Cegah tolak/revisi pada parent ticket yang memiliki child aktif
+            if ((newStatus == ReportStatus.DITOLAK || newStatus == ReportStatus.MENUNGGU_REVISI)
+                && targetReport.isPresent()
+                && reportRepository.countByParentReportReportId(ticketId) > 0) {
+                redirectAttributes.addFlashAttribute("error", "Laporan ini memiliki child ticket yang digabungkan. Tidak dapat ditolak atau direvisi. Setujui laporan untuk melanjutkan proses.");
+                return "redirect:/admin/validation";
+            }
+
+            // FIX SCN-03 (3.3): Simpan note/alasan sebagai rejectionReason agar warga bisa lihat catatan admin
+            Report r;
+            if (newStatus == ReportStatus.DITOLAK || newStatus == ReportStatus.MENUNGGU_REVISI) {
+                // Simpan note sebagai KEDUA field: rejectionReason (tampil di halaman warga) DAN adminNotes
+                r = reportService.updateStatus(ticketId, newStatus, note, note, adminId);
+            } else {
+                r = reportService.updateStatus(ticketId, newStatus, note, adminId);
+            }
+
             if (r != null && r.getReporter() != null) {
                 notificationService.createNotification(
                         r.getReporter().getUserId(), notifTitle, notifMsg, "REPORT", r.getReportId()
@@ -550,8 +607,8 @@ public class AdminPusatController {
         if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
         String regionId = ControllerHelper.getSessionRegionId(session);
         List<MergeRecord> activeMerges = getActiveMerges();
-        Set<String> mergedChildIds = getMergedChildIds(activeMerges);
-        List<Report> mergeCandidates = regionId != null ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.MENUNGGU_VALIDASI, regionId) : reportService.getReportsByStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
+        Set<String> mergedChildIds = getAllActiveChildIds();
+        List<Report> mergeCandidates = regionId != null ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.MENUNGGU_VERIFIKASI, regionId) : reportService.getReportsByStatus(Report.ReportStatus.MENUNGGU_VERIFIKASI);
         List<Map<String, Object>> mergeTickets = mergeCandidates.stream()
                 .filter(r -> !mergedChildIds.contains(r.getReportId()))
                 .map(this::toMergeTicketMap)
@@ -660,7 +717,7 @@ public class AdminPusatController {
 
         String regionId = ControllerHelper.getSessionRegionId(session);
         List<Map<String, Object>> reports = new ArrayList<>();
-        List<Report> validated = regionId != null ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.DIVALIDASI, regionId) : reportService.getReportsByStatus(Report.ReportStatus.DIVALIDASI);
+        List<Report> validated = regionId != null ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.DITERIMA, regionId) : reportService.getReportsByStatus(Report.ReportStatus.DITERIMA);
         if (!validated.isEmpty()) {
             for (Report r : validated) {
                 Map<String, Object> m = new HashMap<>();
@@ -770,7 +827,16 @@ public class AdminPusatController {
 
                 // Create disposition with available metadata (notes, priority, deadline, instructions)
                 dispositionService.createDisposition(ticketId, adminId, dinasId, notes, finalPriority, deadlineDt, instructions);
-                reportService.updateStatus(ticketId, Report.ReportStatus.DIDISPOSISI, notes, adminId);
+                Report rptUpdated = reportService.updateStatus(ticketId, Report.ReportStatus.DALAM_PENINJAUAN, notes, adminId);
+                // FIX SCN-01 (3.7): Kirim notifikasi ke warga bahwa laporan sudah didisposisi
+                if (rptUpdated != null && rptUpdated.getReporter() != null) {
+                    notificationService.createNotification(
+                        rptUpdated.getReporter().getUserId(),
+                        "Laporan Didisposisi",
+                        "Laporan Anda nomor " + ticketId + " telah diteruskan ke dinas terkait untuk ditangani.",
+                        "REPORT", rptUpdated.getReportId()
+                    );
+                }
                 redirectAttributes.addFlashAttribute("success", "Laporan berhasil didisposisikan ke dinas.");
             }
         } catch (Exception e) {
@@ -778,7 +844,8 @@ public class AdminPusatController {
             redirectAttributes.addFlashAttribute("error", "Gagal disposisi: " + e.getMessage());
         }
 
-        return "redirect:/admin/dashboard?tab=queue";
+        // FIX SCN-01 (3.7): Redirect ke tab disposisi setelah berhasil disposisi
+        return "redirect:/admin/disposisi";
     }
 
     @GetMapping("/admin/disposisi-panel")
@@ -910,7 +977,42 @@ public class AdminPusatController {
         } else {
             model.addAttribute("allSla", slaRecordService.getAllRecords());
         }
+
+        // FR-ESK-03: Overdue tickets needing review
+        List<SlaRecord> allRecords = slaRecordService.getAllRecords();
+        List<Map<String, Object>> overdueForReview = allRecords.stream()
+            .filter(s -> s.getCurrentStatus() == SlaRecord.SlaStatus.TERLAMBAT && !s.isOverdueReviewed())
+            .map(s -> {
+                Map<String, Object> m = new HashMap<>();
+                m.put("slaId", s.getSlaId());
+                m.put("reportId", s.getReport() != null ? s.getReport().getReportId() : "-");
+                m.put("ticketNumber", s.getReport() != null ? s.getReport().getTicketNumber() : "-");
+                m.put("deadline", s.getSlaDeadlineAt() != null ? s.getSlaDeadlineAt().format(ControllerHelper.DATETIME_FMT) : "-");
+                m.put("reportStatus", s.getReport() != null && s.getReport().getStatus() != null ? toStatusLabel(s.getReport().getStatus()) : "-");
+                return m;
+            }).collect(Collectors.toList());
+        model.addAttribute("overdueForReview", overdueForReview);
+
         return "admin/sla";
+    }
+
+    // FR-ESK-03: Review overdue SLA ticket
+    @PostMapping("/admin/sla/review-overdue")
+    public String reviewOverdueSla(
+            HttpSession session,
+            RedirectAttributes redirectAttributes,
+            @RequestParam("slaId") String slaId,
+            @RequestParam(value = "notes", required = false) String notes
+    ) {
+        if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
+        try {
+            slaRecordService.markOverdueReviewed(slaId, notes);
+            redirectAttributes.addFlashAttribute("success", "Review overdue SLA dicatat.");
+        } catch (Exception e) {
+            log.error("Gagal review overdue SLA {}: {}", slaId, e.getMessage(), e);
+            redirectAttributes.addFlashAttribute("error", "Gagal mereview: " + e.getMessage());
+        }
+        return "redirect:/admin/sla";
     }
 
     // ==========================================
@@ -920,18 +1022,21 @@ public class AdminPusatController {
     private String toStatusLabel(Report.ReportStatus status) {
         if (status == null) return "Menunggu";
         return switch (status) {
-            case MENUNGGU_VALIDASI -> "Diterima";
-            case PERLU_REVISI -> "Revisi";
+            case MENUNGGU_VERIFIKASI -> "Menunggu Verifikasi";
+            case MENUNGGU_REVISI -> "Menunggu Revisi";
             case DITOLAK -> "Ditolak";
-            case DIVALIDASI -> "Tervalidasi";
-            case DIDISPOSISI -> "Dikirim ke Dinas";
+            case DITERIMA -> "Diterima";
+            case TERGABUNG -> "Tergabung";
+            case DALAM_PENINJAUAN -> "Dalam Peninjauan";
             case DITUGASKAN -> "Ditugaskan";
-            case SEDANG_DIKERJAKAN -> "Dalam Penanganan";
+            case SEDANG_BERJALAN -> "Sedang Berjalan";
             case TERTUNDA -> "Tertunda";
-            case MENUNGGU_KONFIRMASI -> "Menunggu Konfirmasi";
+            case TERLAMBAT -> "Terlambat";
+            case MENUNGGU_VALIDASI -> "Menunggu Konfirmasi Warga";
+            case SENGKETA -> "Disengketakan";
+            case DALAM_EVALUASI_SENGKETA -> "Dalam Evaluasi Sengketa";
+            case SELESAI_OTOMATIS -> "Selesai Otomatis";
             case SELESAI -> "Selesai";
-            case SENGKETA -> "Sengketa";
-            case DITUTUP -> "Ditutup";
         };
     }
 
@@ -965,6 +1070,19 @@ public class AdminPusatController {
         // DRY: gunakan konstanta DATETIME_FMT dari ControllerHelper
         m.put("waktuKejadian", r.getSubmittedAt() != null ? r.getSubmittedAt().format(ControllerHelper.DATETIME_FMT) : "-");
         m.put("deskripsi", r.getDescription() != null ? r.getDescription() : "-");
+
+        // FR-ADM-06: Photo manipulation detection
+        if (r.getPhotoTakenAt() != null && r.getSubmittedAt() != null) {
+            m.put("photoTakenAt", r.getPhotoTakenAt().format(ControllerHelper.DATETIME_FMT));
+            String warning = detectPhotoManipulation(r);
+            if (warning != null) {
+                m.put("photoManipulationWarning", warning);
+            }
+        } else if (r.getPhotoBase64() != null && !r.getPhotoBase64().isBlank()
+                && r.getPhotoTakenAt() == null) {
+            m.put("photoTakenAt", "-");
+            m.put("photoManipulationWarning", "Foto tidak memiliki metadata EXIF waktu pengambilan — potensi manipulasi");
+        }
         return m;
     }
 
@@ -974,23 +1092,35 @@ public class AdminPusatController {
 
     private List<Map<String, Object>> getAdminValidationList(String regionId) {
         List<Report> real = regionId != null
-            ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.MENUNGGU_VALIDASI, regionId)
-            : reportService.getReportsByStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
+            ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.MENUNGGU_VERIFIKASI, regionId)
+            : reportService.getReportsByStatus(Report.ReportStatus.MENUNGGU_VERIFIKASI);
+        // Tambahkan juga MENUNGGU_REVISI ke antrian validasi
+        List<Report> perluRevisi = regionId != null
+            ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.MENUNGGU_REVISI, regionId)
+            : reportService.getReportsByStatus(Report.ReportStatus.MENUNGGU_REVISI);
+        real = new java.util.ArrayList<>(real);
+        real.addAll(perluRevisi);
         real.sort(Comparator.nullsLast(Comparator.comparing(Report::getSubmittedAt, Comparator.nullsLast(Comparator.naturalOrder()))));
         return real.stream().map(this::toAdminValidationMap).collect(java.util.stream.Collectors.toList());
     }
 
     /**
-     * Queue tracking list: semua status aktif (MENUNGGU_VALIDASI, PERLU_REVISI, DIVALIDASI, DIDISPOSISI).
+     * Queue tracking list: semua status aktif.
      * Child tiket dari merge disembunyikan; parent diperkaya dengan info merge count.
      */
     private List<Map<String, Object>> getQueueList(String regionId) {
-        // Kumpulkan laporan dari semua status yang relevan
+        // FIX SCN-01 (6.9): Kumpulkan laporan dari SEMUA status termasuk SELESAI dan DITOLAK agar ada riwayat
         List<Report.ReportStatus> statuses = List.of(
+            Report.ReportStatus.MENUNGGU_VERIFIKASI,
+            Report.ReportStatus.MENUNGGU_REVISI,
+            Report.ReportStatus.DITERIMA,
+            Report.ReportStatus.DALAM_PENINJAUAN,
+            Report.ReportStatus.DITUGASKAN,
+            Report.ReportStatus.SEDANG_BERJALAN,
             Report.ReportStatus.MENUNGGU_VALIDASI,
-            Report.ReportStatus.PERLU_REVISI,
-            Report.ReportStatus.DIVALIDASI,
-            Report.ReportStatus.DIDISPOSISI
+            Report.ReportStatus.SELESAI,
+            Report.ReportStatus.SELESAI_OTOMATIS,
+            Report.ReportStatus.DITOLAK
         );
         List<Report> all = new ArrayList<>();
         for (Report.ReportStatus s : statuses) {
@@ -1000,11 +1130,13 @@ public class AdminPusatController {
             if (chunk != null) all.addAll(chunk);
         }
 
-        // Hitung merge groups: parent -> jumlah child
-        List<MergeRecord> activeMerges = getActiveMerges();
-        Set<String> childIds = getMergedChildIds(activeMerges);
+        // Hitung merge groups: parent -> jumlah child (pakai SEMUA merge aktif, bukan yg terfilter cluster)
+        List<MergeRecord> allActiveMerges = mergeRecordService.getMerges().stream()
+                .filter(m -> Boolean.TRUE.equals(m.getIsActive()))
+                .collect(Collectors.toList());
+        Set<String> childIds = getAllActiveChildIds();
         Map<String, Integer> parentChildCount = new HashMap<>();
-        for (MergeRecord mr : activeMerges) {
+        for (MergeRecord mr : allActiveMerges) {
             if (mr.getParentReport() != null) {
                 parentChildCount.merge(mr.getParentReport().getReportId(), 1, Integer::sum);
             }
@@ -1013,10 +1145,15 @@ public class AdminPusatController {
         List<Map<String, Object>> result = new ArrayList<>();
         for (Report r : all) {
             if (childIds.contains(r.getReportId())) continue; // sembunyikan child
+            if (r.getStatus() == Report.ReportStatus.TERGABUNG) continue; // safety filter
             Map<String, Object> m = toAdminValidationMap(r);
             Integer childCount = parentChildCount.get(r.getReportId());
             m.put("isMergeGroup", childCount != null && childCount > 0);
             m.put("mergeCount", childCount != null ? childCount + 1 : 1);
+
+            // FR-ADM-11: Deteksi potensi duplikat (50m + kategori sama)
+            m.put("hasPotentialDuplicate", hasPotentialDuplicate(r));
+
             result.add(m);
         }
 
@@ -1028,6 +1165,23 @@ public class AdminPusatController {
         return result;
     }
 
+    // FR-ADM-03: Pagination wrapper
+    private Map<String, Object> getQueueList(String regionId, int page, int size) {
+        List<Map<String, Object>> all = getQueueList(regionId);
+        int totalItems = all.size();
+        int totalPages = Math.max(1, (int) Math.ceil((double) totalItems / size));
+        int safePage = Math.max(1, Math.min(page, totalPages));
+        int fromIndex = Math.min((safePage - 1) * size, totalItems);
+        int toIndex = Math.min(fromIndex + size, totalItems);
+        List<Map<String, Object>> items = (fromIndex < totalItems) ? all.subList(fromIndex, toIndex) : new ArrayList<>();
+        Map<String, Object> result = new HashMap<>();
+        result.put("items", items);
+        result.put("page", safePage);
+        result.put("totalPages", totalPages);
+        result.put("totalItems", totalItems);
+        return result;
+    }
+
     private List<MergeRecord> getActiveMerges() {
         return mergeRecordService.getMerges().stream()
                 .filter(m -> Boolean.TRUE.equals(m.getIsActive()))
@@ -1036,11 +1190,20 @@ public class AdminPusatController {
                 .filter(m -> {
                     if (m.getParentReport() == null) return false;
                     Report.ReportStatus s = m.getParentReport().getStatus();
-                    return s == Report.ReportStatus.MENUNGGU_VALIDASI
-                        || s == Report.ReportStatus.DIVALIDASI
-                        || s == Report.ReportStatus.PERLU_REVISI;
+                    return s == Report.ReportStatus.MENUNGGU_VERIFIKASI
+                        || s == Report.ReportStatus.DITERIMA
+                        || s == Report.ReportStatus.MENUNGGU_REVISI;
                 })
                 .collect(Collectors.toList());
+    }
+
+    /** Ambil SEMUA child ID dari merge aktif, tanpa filter status parent — untuk queue filtering */
+    private Set<String> getAllActiveChildIds() {
+        return mergeRecordService.getMerges().stream()
+                .filter(m -> Boolean.TRUE.equals(m.getIsActive()))
+                .filter(m -> m.getChildReport() != null && m.getChildReport().getReportId() != null)
+                .map(m -> m.getChildReport().getReportId())
+                .collect(Collectors.toSet());
     }
 
     private Set<String> getMergedChildIds(List<MergeRecord> activeMerges) {
@@ -1107,25 +1270,27 @@ public class AdminPusatController {
         if (r.getPhotoBase64() == null || r.getPhotoBase64().isBlank()) {
             m.put("foto", dummyReportImage());
         }
+        m.put("hasPotentialDuplicate", hasPotentialDuplicate(r));
         return m;
     }
 
     private String toMergeTicketStatus(ReportStatus status) {
         if (status == null) return "menunggu";
         return switch (status) {
-            case DIDISPOSISI -> "disposisi";
-            case DITUGASKAN, SEDANG_DIKERJAKAN -> "in-progress";
+            case DALAM_PENINJAUAN -> "peninjauan";
+            case DITUGASKAN, SEDANG_BERJALAN -> "in-progress";
             default -> "menunggu";
         };
     }
 
     private boolean isMergeBlocked(ReportStatus status) {
         if (status == null) return false;
-        return status == ReportStatus.DIDISPOSISI
+        return status == ReportStatus.DALAM_PENINJAUAN
                 || status == ReportStatus.DITUGASKAN
-                || status == ReportStatus.SEDANG_DIKERJAKAN
+                || status == ReportStatus.SEDANG_BERJALAN
                 || status == ReportStatus.SELESAI
-                || status == ReportStatus.DITUTUP;
+                || status == ReportStatus.SELESAI_OTOMATIS
+                || status == ReportStatus.TERGABUNG;
     }
 
     // DRY: method ini sekarang didelegasikan ke ControllerHelper
@@ -1135,43 +1300,107 @@ public class AdminPusatController {
     }
 
     // ==========================================
-    // SIMILARITY ENGINE — sama dengan algoritma di frontend JS
-    // GPS (0-50) + kategori (0-25) + lokasi (0-15) + deskripsi (0-10)
+    // PHOTO MANIPULATION DETECTION — FR-ADM-06
     // ==========================================
 
+    /**
+     * Cek apakah foto dicurigai dimanipulasi berdasarkan selisih photoTakenAt vs submittedAt.
+     * Returns warning message jika mencurigakan, null jika aman.
+     */
+    private String detectPhotoManipulation(Report report) {
+        if (report.getPhotoTakenAt() == null || report.getSubmittedAt() == null) return null;
+        if (report.getPhotoTakenAt().isAfter(report.getSubmittedAt())) {
+            return "Waktu pengambilan foto (" + report.getPhotoTakenAt().format(ControllerHelper.DATETIME_FMT)
+                    + ") setelah waktu pengiriman laporan — data EXIF mencurigakan";
+        }
+        long hoursDiff = java.time.Duration.between(report.getPhotoTakenAt(), report.getSubmittedAt()).toHours();
+        if (hoursDiff > 24) {
+            return "Foto diambil " + hoursDiff + " jam sebelum laporan dikirim — potensi penggunaan foto lama";
+        }
+        return null;
+    }
+
+    // ==========================================
+    // DUPLICATE DETECTION — 50m radius + same category (SRS V1.0)
+    // ==========================================
+
+    /**
+     * Cek apakah report memiliki potensi duplikat (50m + kategori sama).
+     */
+    private boolean hasPotentialDuplicate(Report report) {
+        if (report == null || report.getLatitude() == null || report.getLongitude() == null
+                || report.getCategory() == null || report.getCategory().getCategoryId() == null) {
+            return false;
+        }
+        double lat = report.getLatitude().doubleValue();
+        double lng = report.getLongitude().doubleValue();
+        double delta = 0.00045; // ~50m dalam derajat
+        BigDecimal minLat = BigDecimal.valueOf(lat - delta);
+        BigDecimal maxLat = BigDecimal.valueOf(lat + delta);
+        BigDecimal minLng = BigDecimal.valueOf(lng - delta);
+        BigDecimal maxLng = BigDecimal.valueOf(lng + delta);
+
+        List<Report> nearby = reportRepository.findByCategoryAndCoordinateRange(
+                report.getCategory().getCategoryId(), minLat, maxLat, minLng, maxLng);
+
+        // Filter exclude diri sendiri dan pastikan dalam 50m menggunakan haversine
+        for (Report other : nearby) {
+            if (other.getReportId().equals(report.getReportId())) continue;
+            if (other.getLatitude() == null || other.getLongitude() == null) continue;
+            double dist = haversineMeters(lat, lng,
+                    other.getLatitude().doubleValue(), other.getLongitude().doubleValue());
+            if (dist <= 50.0) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Hitung similarity score sederhana: 100 jika dalam 50m + kategori sama, else 0.
+     */
     private int computeReportSimilarity(Report ref, Report other) {
         if (ref == null || other == null) return 0;
+
+        // 50m + kategori sama → duplikat pasti
+        if (ref.getLatitude() != null && ref.getLongitude() != null
+                && other.getLatitude() != null && other.getLongitude() != null
+                && ref.getCategory() != null && other.getCategory() != null
+                && ref.getCategory().getCategoryId() != null
+                && ref.getCategory().getCategoryId().equals(other.getCategory().getCategoryId())) {
+            double dist = haversineMeters(
+                    ref.getLatitude().doubleValue(), ref.getLongitude().doubleValue(),
+                    other.getLatitude().doubleValue(), other.getLongitude().doubleValue());
+            if (dist <= 50.0) return 100;
+        }
+
+        // Di luar 50m atau beda kategori → masih bisa mirip berdasarkan teks
         int score = 0;
 
-        // 1. GPS proximity (0-50 pts)
+        // GPS proximity (0-30 pts)
         if (ref.getLatitude() != null && ref.getLongitude() != null
                 && other.getLatitude() != null && other.getLongitude() != null) {
             double dist = haversineMeters(
                     ref.getLatitude().doubleValue(), ref.getLongitude().doubleValue(),
                     other.getLatitude().doubleValue(), other.getLongitude().doubleValue());
-            if      (dist <=   100) score += 50;
-            else if (dist <=   250) score += 44;
-            else if (dist <=   500) score += 36;
-            else if (dist <=  1000) score += 26;
-            else if (dist <=  2500) score += 14;
-            else if (dist <=  5000) score +=  6;
+            if      (dist <=   100) score += 30;
+            else if (dist <=   500) score += 20;
+            else if (dist <=  1000) score += 10;
         }
 
-        // 2. Same category (0 or 25 pts)
+        // Same category (0 or 30 pts)
         if (ref.getCategory() != null && other.getCategory() != null
                 && ref.getCategory().getCategoryId() != null
                 && ref.getCategory().getCategoryId().equals(other.getCategory().getCategoryId())) {
-            score += 25;
+            score += 30;
         }
 
-        // 3. Location hint word overlap (0-15 pts)
+        // Location hint word overlap (0-20 pts)
         if (ref.getLocationHint() != null && other.getLocationHint() != null) {
-            score += wordOverlapScore(ref.getLocationHint(), other.getLocationHint(), 15);
+            score += wordOverlapScore(ref.getLocationHint(), other.getLocationHint(), 20);
         }
 
-        // 4. Description word overlap (0-10 pts)
+        // Description word overlap (0-20 pts)
         if (ref.getDescription() != null && other.getDescription() != null) {
-            score += wordOverlapScore(ref.getDescription(), other.getDescription(), 10);
+            score += wordOverlapScore(ref.getDescription(), other.getDescription(), 20);
         }
 
         return Math.min(100, score);

@@ -1,1 +1,2 @@
 org.springframework.context.ApplicationContextInitializer=com.plr.aduaja.config.DatabaseRecoveryApplicationContextInitializer
+org.springframework.boot.EnvironmentPostProcessor=com.plr.aduaja.config.DatabaseRecoveryEnvironmentPostProcessor

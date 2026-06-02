@@ -1,5 +1,6 @@
 package com.plr.aduaja.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -9,6 +10,7 @@ import java.time.LocalDateTime;
 // ============================================================
 @Entity
 @Table(name = "report_revisions")
+@JsonIgnoreProperties({"report"})
 public class ReportRevision extends BaseEntity {  // ← INHERITANCE sejati
 
     // ENKAPSULASI: semua field PRIVATE

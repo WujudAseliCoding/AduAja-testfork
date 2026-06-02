@@ -1,2 +1,0 @@
-test
-ssss kopi

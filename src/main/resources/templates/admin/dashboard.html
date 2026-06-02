@@ -6,6 +6,7 @@
 >
   <th:block layout:fragment="extraHead">
     <title>AduAja - Dashboard Admin</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
       [x-cloak] { display: none !important; }
       .sortable-col:hover { background: #f3f4f6 !important; }
@@ -352,10 +353,16 @@
                           </div>
                         </td>
                         <td>
-                          <span class="text-xs px-2.5 py-1 rounded-full font-semibold"
-                            th:class="${laporan.status == 'Diterima' ? 'badge-diterima' : (laporan.status == 'Ditolak' ? 'badge-ditolak' : (laporan.status == 'Revisi' ? 'badge-revisi' : (laporan.status == 'Dalam Peninjauan' ? 'badge-peninjauan' : 'badge-default')))}"
-                            th:text="${laporan.status}">
-                          </span>
+                          <div class="flex flex-col gap-1">
+                            <span class="text-xs px-2.5 py-1 rounded-full font-semibold"
+                              th:class="${laporan.status == 'Diterima' ? 'badge-diterima' : (laporan.status == 'Ditolak' ? 'badge-ditolak' : (laporan.status == 'Revisi' ? 'badge-revisi' : (laporan.status == 'Dalam Peninjauan' ? 'badge-peninjauan' : 'badge-default')))}"
+                              th:text="${laporan.status}">
+                            </span>
+                            <span th:if="${laporan.hasPotentialDuplicate}"
+                                  class="text-xs px-2 py-0.5 rounded-full font-semibold bg-purple-100 text-purple-700 border border-purple-200 inline-flex items-center gap-1">
+                              <i data-lucide="copy" class="w-3 h-3"></i> Potensi Duplikat
+                            </span>
+                          </div>
                         </td>
                         <td>
                           <a
@@ -379,7 +386,7 @@
           </div>
         </section>
 
-        <section x-show="activeTab === 'merge'" x-cloak class="space-y-4" x-data="{ showReviewModal: false, reviewTickets: [], reviewReason: '', parentTicketId: '' }">
+        <section x-show="activeTab === 'merge'" x-cloak class="space-y-4" x-data="{ showReviewModal: false, reviewTickets: [], reviewReason: '', parentTicketId: '', showLightbox: false, lightboxImage: '', mergeMap: null, mergeMarker: null }">
           <div th:if="${param.merged}" class="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
             <i data-lucide="check-circle" class="w-5 h-5 text-green-600 flex-shrink-0"></i>
             <div class="text-sm text-green-800">
@@ -517,7 +524,7 @@
                   x-on:click="
                     const checked = Array.from(document.querySelectorAll('input[name=selectedTickets]:checked')).map(cb => {
                       const row = cb.closest('[data-id]');
-                      return row ? { id: row.dataset.id, judul: row.dataset.judul, lokasi: row.dataset.lokasi, pelapor: row.dataset.pelapor, kategori: row.dataset.kategori, deskripsi: row.dataset.deskripsi, similarity: row.dataset.similarity, status: row.dataset.ticketStatus, mergeable: row.dataset.mergeable === 'true', lat: row.dataset.lat || '0', lng: row.dataset.lng || '0', kabupaten: '', loadingKab: true } : null;
+                      return row ? { id: row.dataset.id, judul: row.dataset.judul, lokasi: row.dataset.lokasi, pelapor: row.dataset.pelapor, kategori: row.dataset.kategori, deskripsi: row.dataset.deskripsi, foto: row.dataset.foto || '', similarity: row.dataset.similarity, status: row.dataset.ticketStatus, mergeable: row.dataset.mergeable === 'true', lat: row.dataset.lat || '0', lng: row.dataset.lng || '0', kabupaten: '', loadingKab: true, hasPotentialDuplicate: row.dataset.potentialDuplicate === 'true' } : null;
                     }).filter(Boolean);
                     reviewTickets = checked;
                     parentTicketId = checked.length > 0 ? checked[0].id : '';
@@ -565,7 +572,7 @@
                 <div class="space-y-3 max-h-[600px] overflow-y-auto">
                   <div
                     th:each="ticket : ${mergeTickets}"
-                    th:attr="data-id=${ticket.id}, data-judul=${ticket.judul}, data-lokasi=${ticket.wilayah}, data-pelapor=${ticket.pelapor}, data-kategori=${ticket.kategori}, data-deskripsi=${ticket.deskripsi}, data-similarity=${ticket.similarityScore}, data-ticketStatus=${ticket.ticketStatus}, data-mergeable=${ticket.isMergeable}, data-lat=${ticket.lat}, data-lng=${ticket.lng}"
+                     th:attr="data-id=${ticket.id}, data-judul=${ticket.judul}, data-lokasi=${ticket.wilayah}, data-pelapor=${ticket.pelapor}, data-kategori=${ticket.kategori}, data-deskripsi=${ticket.deskripsi}, data-foto=${ticket.foto}, data-similarity=${ticket.similarityScore}, data-ticketStatus=${ticket.ticketStatus}, data-mergeable=${ticket.isMergeable}, data-lat=${ticket.lat}, data-lng=${ticket.lng}, data-potential-duplicate=${ticket.hasPotentialDuplicate}"
                     x-show="searchMergeQuery === '' || $el.dataset.id.toLowerCase().includes(searchMergeQuery.toLowerCase()) || $el.dataset.judul.toLowerCase().includes(searchMergeQuery.toLowerCase()) || $el.dataset.lokasi.toLowerCase().includes(searchMergeQuery.toLowerCase())"
                     class="p-4 border rounded-lg transition-colors"
                     th:classappend="${ticket.isMergeable} ? 'hover:bg-gray-50' : 'bg-gray-50 opacity-75'"
@@ -614,6 +621,11 @@
                               th:text="${ticket.kategori}"
                             ></span>
                           </div>
+                        </div>
+                        <div th:if="${ticket.hasPotentialDuplicate}" class="mt-2">
+                          <span class="text-xs px-2 py-0.5 rounded-full font-semibold bg-purple-100 text-purple-700 border border-purple-200 inline-flex items-center gap-1">
+                            <i data-lucide="copy" class="w-3 h-3"></i> Potensi Duplikat
+                          </span>
                         </div>
                         <div th:if="${!ticket.isMergeable}" class="mt-2 flex items-center gap-1 text-xs text-red-600 font-medium">
                           <i data-lucide="lock" class="w-3 h-3"></i>
@@ -788,23 +800,33 @@
                           <p class="text-xs text-gray-500 mt-1 line-clamp-2 leading-relaxed" x-text="ticket.deskripsi || '-'"></p>
                         </div>
 
-                        <div class="space-y-1.5">
-                          <div class="flex items-start gap-1.5 text-xs text-gray-600">
-                            <i data-lucide="user" class="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5"></i>
-                            <span x-text="ticket.pelapor"></span>
+                          <div class="space-y-1.5">
+                            <div class="flex items-start gap-1.5 text-xs text-gray-600">
+                              <i data-lucide="user" class="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5"></i>
+                              <span x-text="ticket.pelapor"></span>
+                            </div>
+                            <div class="flex items-start gap-1.5 text-xs text-gray-600">
+                              <i data-lucide="tag" class="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5"></i>
+                              <span x-text="ticket.kategori"></span>
+                            </div>
+                            <div class="flex items-start gap-1.5 text-xs text-gray-600">
+                              <i data-lucide="map-pin" class="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5"></i>
+                              <span x-text="ticket.lokasi"></span>
+                            </div>
+                            <div x-show="ticket.hasPotentialDuplicate" class="flex items-start gap-1.5 text-xs text-purple-700 font-semibold">
+                              <i data-lucide="copy" class="w-3.5 h-3.5 flex-shrink-0 mt-0.5"></i>
+                              <span>Potensi Duplikat</span>
+                            </div>
                           </div>
-                          <div class="flex items-start gap-1.5 text-xs text-gray-600">
-                            <i data-lucide="tag" class="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5"></i>
-                            <span x-text="ticket.kategori"></span>
-                          </div>
-                          <div class="flex items-start gap-1.5 text-xs text-gray-600">
-                            <i data-lucide="map-pin" class="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5"></i>
-                            <span x-text="ticket.lokasi"></span>
-                          </div>
+
+                        <!-- FR-ADM-12: Side-by-side photo comparison with lightbox zoom -->
+                        <div x-show="ticket.foto" class="rounded-lg overflow-hidden border border-gray-200">
+                          <img :src="ticket.foto" alt="Foto laporan" class="w-full h-40 object-cover hover:scale-105 transition-transform duration-300 cursor-pointer"
+                               @click="showLightbox = true; lightboxImage = ticket.foto" />
                         </div>
 
-                        <!-- GPS section (no "Kabupaten:" prefix — langsung tampil nama wilayah) -->
-                        <div class="rounded-lg bg-blue-50 border border-blue-100 p-3 space-y-1">
+                        <!-- GPS section with Leaflet map -->
+                        <div x-show="ticket.lat && ticket.lat != '0' && ticket.lng && ticket.lng != '0'" class="rounded-lg bg-blue-50 border border-blue-100 p-3 space-y-2">
                           <div class="flex items-center gap-1.5 text-xs font-semibold text-blue-700">
                             <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
@@ -813,11 +835,24 @@
                             Koordinat GPS
                           </div>
                           <div class="font-mono text-xs text-blue-800" x-text="ticket.lat + ', ' + ticket.lng"></div>
-                          <div class="text-xs">
-                            <span x-show="ticket.loadingKab" class="italic text-blue-400">Memuat wilayah...</span>
-                            <span x-show="!ticket.loadingKab && ticket.kabupaten" class="text-blue-700 font-medium" x-text="ticket.kabupaten"></span>
-                            <span x-show="!ticket.loadingKab && !ticket.kabupaten" class="text-gray-400">Wilayah tidak tersedia</span>
-                          </div>
+                          <div :id="'merge-map-' + ticket.id" class="w-full h-32 rounded-lg border border-blue-200" x-init="
+                            $nextTick(() => {
+                              if (typeof L !== 'undefined' && ticket.lat && ticket.lng && ticket.lat != '0' && ticket.lng != '0') {
+                                const mapEl = document.getElementById('merge-map-' + ticket.id);
+                                if (mapEl && !mapEl._leaflet_initialized) {
+                                  mapEl._leaflet_initialized = true;
+                                  const lat = parseFloat(ticket.lat) || 3.5952;
+                                  const lng = parseFloat(ticket.lng) || 98.6722;
+                                  const map = L.map(mapEl, { zoomControl: false }).setView([lat, lng], 14);
+                                  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                                    attribution: '&copy; OpenStreetMap contributors'
+                                  }).addTo(map);
+                                  L.marker([lat, lng]).addTo(map);
+                                  setTimeout(() => map.invalidateSize(), 200);
+                                }
+                              }
+                            })
+                          "></div>
                         </div>
 
                         <!-- Similarity progress bar (tiket non-referensi) -->
@@ -912,6 +947,21 @@
 
               </div>
             </div>
+          </div>
+
+          <!-- Lightbox overlay for photo zoom -->
+          <div x-show="showLightbox" x-cloak
+               class="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-[60]"
+               @keydown.escape.window="showLightbox = false"
+               @click="showLightbox = false">
+            <div class="relative max-w-4xl max-h-[90vh] flex items-center justify-center">
+              <img :src="lightboxImage" alt="Foto laporan" class="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl" />
+              <button @click="showLightbox = false"
+                      class="absolute top-2 right-2 bg-black/50 text-white rounded-full p-2 hover:bg-black/70 transition-colors">
+                <i data-lucide="x" class="w-6 h-6"></i>
+              </button>
+            </div>
+            <p class="absolute bottom-4 text-white/60 text-xs">Klik di luar foto atau tekan ESC untuk menutup</p>
           </div>
         </section>
 
@@ -1222,6 +1272,7 @@
   </div>
 
   <th:block layout:fragment="extraScripts">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
       document.addEventListener('DOMContentLoaded', function() {
         const dashSearch = document.getElementById('dashSearchInput');

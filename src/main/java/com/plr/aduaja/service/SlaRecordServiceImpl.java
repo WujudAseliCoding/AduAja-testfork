@@ -140,6 +140,17 @@ public class SlaRecordServiceImpl implements SlaRecordService {
 
     @Override  // ← POLYMORPHISM: Override dari interface
     @Transactional
+    public SlaRecord markOverdueReviewed(String slaId, String notes) {
+        SlaRecord sla = slaRecordRepository.findById(slaId)
+                .orElseThrow(() -> new RuntimeException("SLA tidak ditemukan: " + slaId));
+        sla.setOverdueReviewed(true);
+        sla.setOverdueReviewNotes(notes != null ? notes.trim() : "Ditinjau oleh admin");
+        sla.setOverdueReviewedAt(LocalDateTime.now());
+        return slaRecordRepository.save(sla);
+    }
+
+    @Override  // ← POLYMORPHISM: Override dari interface
+    @Transactional
     public void checkAndUpdateOverdueSla() {
         List<SlaRecord> activeSlas = slaRecordRepository.findByCurrentStatus(SlaStatus.BERJALAN);
         LocalDateTime now = LocalDateTime.now();

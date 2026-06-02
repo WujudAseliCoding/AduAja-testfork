@@ -47,6 +47,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/admin/login", "/petugas/login", "/warga/login").permitAll()
                         .requestMatchers("/warga/register", "/warga/verify-otp").permitAll()
                         .requestMatchers(HttpMethod.POST, "/warga/register", "/warga/verify-otp").permitAll()
+                        // FIX SCN-14: Lupa password harus bisa diakses tanpa login
+                        .requestMatchers("/warga/forgot-password", "/warga/forgot-password/verify").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/warga/forgot-password", "/warga/forgot-password/verify").permitAll()
 
                         // ===== LOGOUT (permitAll agar bisa POST dari form) =====
                         .requestMatchers(HttpMethod.POST, "/admin/logout", "/petugas/logout", "/warga/logout").permitAll()

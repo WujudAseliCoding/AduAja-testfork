@@ -11,6 +11,7 @@ import com.plr.aduaja.repository.RegionRepository;
 import com.plr.aduaja.repository.UserRepository;
 import com.plr.aduaja.dto.CreateReportDTO;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,6 +46,10 @@ public class ReportServiceImpl implements ReportService {  // ← POLYMORPHISM
 
     @Autowired
     private RegionRepository regionRepository;
+
+    @Autowired
+    @Lazy
+    private MergeRecordService mergeRecordService;
 
     // ===========================
     // @Override — Run-time Polymorphism
@@ -106,7 +111,29 @@ public class ReportServiceImpl implements ReportService {  // ← POLYMORPHISM
         report.setLongitude(dto.getLongitude());
         report.setPhotoBase64(dto.getPhotoBase64());
         report.setSubmittedAt(LocalDateTime.now());
-        report.setStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
+
+        // FR-ADM-06: Set photo taken at from EXIF if provided
+        if (dto.getPhotoTakenAt() != null && !dto.getPhotoTakenAt().isBlank()) {
+            try {
+                report.setPhotoTakenAt(LocalDateTime.parse(dto.getPhotoTakenAt()));
+            } catch (Exception e) {
+                // ignore parse failure
+            }
+        }
+
+        // FR-ADM-04: Auto-reject if no photo or GPS coordinates
+        boolean hasPhoto = dto.getPhotoBase64() != null && !dto.getPhotoBase64().isBlank();
+        boolean hasGps = dto.getLatitude() != null && dto.getLongitude() != null;
+        if (!hasPhoto || !hasGps) {
+            StringBuilder reason = new StringBuilder("Laporan ditolak otomatis: ");
+            if (!hasPhoto) reason.append("tidak menyertakan foto. ");
+            if (!hasGps) reason.append("tidak menyertakan koordinat GPS. ");
+            report.setStatus(Report.ReportStatus.DITOLAK);
+            report.setRejectionReason(reason.toString().trim());
+            report.setAdminNotes("Ditolak otomatis oleh sistem (FR-ADM-04)");
+        } else {
+            report.setStatus(Report.ReportStatus.MENUNGGU_VERIFIKASI);
+        }
 
         if (dto.getCategoryId() != null && !dto.getCategoryId().isBlank()) {
             categoryRepository.findById(dto.getCategoryId())
@@ -127,6 +154,17 @@ public class ReportServiceImpl implements ReportService {  // ← POLYMORPHISM
         Report report = reportRepository.findById(reportId)
             .orElseThrow(() -> new RuntimeException("Report tidak ditemukan"));
 
+        // Cegah perubahan status langsung pada laporan yang sudah digabungkan
+        if (report.getStatus() == Report.ReportStatus.TERGABUNG) {
+            throw new IllegalStateException("Laporan yang sudah digabungkan tidak dapat diubah statusnya secara langsung.");
+        }
+
+        // Cegah tolak/revisi pada parent yang memiliki child aktif (query langsung ke DB)
+        if ((newStatus == Report.ReportStatus.DITOLAK || newStatus == Report.ReportStatus.MENUNGGU_REVISI)
+            && reportRepository.countByParentReportReportId(reportId) > 0) {
+            throw new IllegalStateException("Laporan ini memiliki child ticket yang digabungkan. Tidak dapat ditolak atau direvisi.");
+        }
+
         Report.ReportStatus oldStatus = report.getStatus();
 
         if (notes != null) {
@@ -139,6 +177,9 @@ public class ReportServiceImpl implements ReportService {  // ← POLYMORPHISM
         // Buat revision record (audit trail)
         createRevision(saved, oldStatus, newStatus, notes, changedBy);
 
+        // Cascade status ke child tickets (merge group)
+        cascadeStatusToChildren(reportId, newStatus, notes, changedBy);
+
         return saved;
     }
 
@@ -149,6 +190,17 @@ public class ReportServiceImpl implements ReportService {  // ← POLYMORPHISM
         Report report = reportRepository.findById(reportId)
             .orElseThrow(() -> new RuntimeException("Report tidak ditemukan"));
 
+        // Cegah perubahan status langsung pada laporan yang sudah digabungkan
+        if (report.getStatus() == Report.ReportStatus.TERGABUNG) {
+            throw new IllegalStateException("Laporan yang sudah digabungkan tidak dapat diubah statusnya secara langsung.");
+        }
+
+        // Cegah tolak/revisi pada parent yang memiliki child aktif (query langsung ke DB)
+        if ((newStatus == Report.ReportStatus.DITOLAK || newStatus == Report.ReportStatus.MENUNGGU_REVISI)
+            && reportRepository.countByParentReportReportId(reportId) > 0) {
+            throw new IllegalStateException("Laporan ini memiliki child ticket yang digabungkan. Tidak dapat ditolak atau direvisi.");
+        }
+
         Report.ReportStatus oldStatus = report.getStatus();
         report.setStatus(newStatus);
         report.setRejectionReason(rejectionReason);
@@ -157,6 +209,9 @@ public class ReportServiceImpl implements ReportService {  // ← POLYMORPHISM
         Report saved = reportRepository.save(report);
 
         createRevision(saved, oldStatus, newStatus, rejectionReason, changedBy);
+
+        // Cascade status ke child tickets (merge group)
+        cascadeStatusToChildren(reportId, newStatus, rejectionReason, changedBy);
 
         return saved;
     }
@@ -184,6 +239,13 @@ public class ReportServiceImpl implements ReportService {  // ← POLYMORPHISM
         return reportRepository.findByStatusAndRegionRegionIdOrderBySubmittedAtDesc(status, regionId);
     }
 
+    @Override
+    public void addReportRevision(Report report, Report.ReportStatus oldStatus,
+                                   Report.ReportStatus newStatus, String notes, String changedBy) {
+        if (oldStatus == newStatus) return;
+        createRevision(report, oldStatus, newStatus, notes, changedBy);
+    }
+
     @Override  // ← POLYMORPHISM
     public String generateTicketNumber() {
         return "RPT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
@@ -204,5 +266,28 @@ public class ReportServiceImpl implements ReportService {  // ← POLYMORPHISM
         revision.setChangedBy(changedBy != null ? changedBy : "SYSTEM");
         revision.setChangedAt(LocalDateTime.now());
         revisionRepository.save(revision);
+    }
+
+    /**
+     * Cascade status change to all active child tickets in merge group.
+     * Child tickets will mirror the parent status so they can participate
+     * in confirmation/dispute flows.
+     */
+    @Override
+    public void cascadeStatusToChildren(String parentReportId, Report.ReportStatus newStatus,
+                                          String notes, String changedBy) {
+        try {
+            List<Report> children = mergeRecordService.getAllChildReportsForParent(parentReportId);
+            for (Report child : children) {
+                if (child.getStatus() == newStatus) continue;
+                Report.ReportStatus childOldStatus = child.getStatus();
+                child.setStatus(newStatus);
+                reportRepository.save(child);
+                createRevision(child, childOldStatus, newStatus,
+                    "Status diselaraskan dengan parent: " + (notes != null ? notes : ""), changedBy);
+            }
+        } catch (Exception e) {
+            // Cascade failure should not break the primary status update
+        }
     }
 }

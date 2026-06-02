@@ -1,5 +1,6 @@
 package com.plr.aduaja.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -12,6 +13,7 @@ import java.util.List;
 // ============================================================
 @Entity
 @Table(name = "reports")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "parentReport"})
 public class Report extends BaseEntity {  // ← INHERITANCE sejati
 
     @Id
@@ -54,7 +56,7 @@ public class Report extends BaseEntity {  // ← INHERITANCE sejati
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private ReportStatus status = ReportStatus.MENUNGGU_VALIDASI;
+    private ReportStatus status = ReportStatus.MENUNGGU_VERIFIKASI;
 
     // ENKAPSULASI: field catatan admin (private)
     @Column(name = "admin_notes", columnDefinition = "TEXT")
@@ -106,9 +108,9 @@ public class Report extends BaseEntity {  // ← INHERITANCE sejati
     private DisputeRecord disputeRecord;
 
     public enum ReportStatus {
-        MENUNGGU_VALIDASI, PERLU_REVISI, DITOLAK, DIVALIDASI,
-        DIDISPOSISI, DITUGASKAN, SEDANG_DIKERJAKAN, TERTUNDA,
-        MENUNGGU_KONFIRMASI, SELESAI, SENGKETA, DITUTUP
+        MENUNGGU_VERIFIKASI, DITOLAK, MENUNGGU_REVISI, DITERIMA, TERGABUNG,
+        DALAM_PENINJAUAN, DITUGASKAN, SEDANG_BERJALAN, TERTUNDA, TERLAMBAT,
+        MENUNGGU_VALIDASI, SENGKETA, DALAM_EVALUASI_SENGKETA, SELESAI_OTOMATIS, SELESAI
     }
 
     public String getReportId() { return reportId; }

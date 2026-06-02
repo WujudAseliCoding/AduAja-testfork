@@ -5,293 +5,368 @@
   layout:decorate="~{layouts/master}"
 >
   <th:block layout:fragment="extraHead">
-    <title>AduAja - Progress Update</title>
+    <title>AduAja - Progress &amp; SLA</title>
     <style>
-      [x-cloak] {
-        display: none !important;
-      }
+      [x-cloak] { display: none !important; }
+      .ticket-card-active  { border-left: 3px solid #2563eb; }
+      .ticket-card-paused  { border-left: 3px solid #f59e0b; }
+      .ticket-card-selected { background-color: #eff6ff; }
     </style>
   </th:block>
 
-  <div layout:fragment="content" class="min-h-screen bg-gray-50">
-    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="bg-white rounded-xl border border-gray-100 shadow-sm lg:col-span-1">
-          <div class="px-6 pt-6 pb-4">
-            <h2 class="text-lg font-semibold text-gray-900">Dalam Penanganan</h2>
-            <p
-              class="text-sm text-gray-600"
-              th:text="|${#lists.size(ticketsInProgress)} tiket sedang ditangani|"
-            >0 tiket</p>
-          </div>
-          <div class="px-6 pb-6">
-            <div class="relative mb-4">
-              <i
-                data-lucide="search"
-                class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
-              ></i>
-              <input
-                type="text"
-                class="w-full pl-10 px-3 py-2 border border-gray-300 rounded-md"
-                placeholder="Cari ID atau judul..."
-              />
-            </div>
-            <div class="space-y-3 max-h-[600px] overflow-y-auto">
-              <div
-                th:each="ticket : ${ticketsInProgress}"
-                class="p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
-              >
-                <div class="flex gap-3">
-                  <img
-                    th:src="${ticket.foto}"
-                    alt="Foto laporan"
-                    class="w-16 h-16 object-cover rounded border border-gray-200 flex-shrink-0"
-                  />
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-start justify-between mb-1">
-                      <span
-                        class="font-mono text-xs font-semibold text-blue-600"
-                        th:text="${ticket.id}"
-                        >ID</span
-                      >
-                      <span
-                        class="text-xs px-2 py-0.5 rounded bg-gray-100"
-                        th:text="${ticket.prioritas}"
-                        >Prioritas</span
-                      >
-                    </div>
-                    <h4
-                      class="font-medium text-sm mb-1"
-                      th:text="${ticket.judul}"
-                    >Judul</h4>
-                    <p
-                      class="text-xs text-gray-500 mb-2"
-                      th:text="${ticket.kategori}"
-                    >Kategori</p>
-                    <div class="flex items-center gap-1 text-xs text-gray-600">
-                      <i data-lucide="clock" class="w-3 h-3"></i>
-                      <span
-                        th:text="|${#lists.size(ticket.progressHistory)} update|"
-                        >0 update</span
-                      >
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="bg-white rounded-xl border border-gray-100 shadow-sm lg:col-span-2">
-          <div class="px-6 pt-6 pb-4">
-            <h2 class="text-lg font-semibold text-gray-900">Update Progress Penanganan</h2>
-            <p class="text-sm text-gray-600">
-              Tambahkan update progress untuk transparansi kepada pelapor
-            </p>
-          </div>
-          <div class="px-6 pb-6">
-            <div
-              th:if="${selectedTicket == null}"
-              class="flex items-center justify-center h-96 text-gray-400"
+  <div layout:fragment="content" class="min-h-screen bg-gray-50" x-data="{ pauseOpen: false }">
+    <header class="aduaja-header sticky top-0 z-20 border-b">
+      <div class="px-6 py-5">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <a
+              th:href="@{/admin/dinas/dashboard}"
+              class="aduaja-btn-secondary inline-flex items-center gap-2 text-sm"
             >
-              <div class="text-center">
-                <i data-lucide="clock" class="w-12 h-12 mx-auto mb-3"></i>
-                <p>Pilih tiket dari daftar untuk update progress</p>
-              </div>
-            </div>
-            <div th:if="${selectedTicket != null}" class="space-y-6">
-              <div class="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
-                <div>
-                  <p class="text-xs text-gray-600">ID Tiket</p>
-                  <p
-                    class="font-mono font-semibold"
-                    th:text="${selectedTicket.id}"
-                  >ID</p>
-                </div>
-                <div>
-                  <p class="text-xs text-gray-600">Prioritas</p>
-                  <span
-                    class="text-xs px-2 py-1 rounded bg-gray-100"
-                    th:text="${selectedTicket.prioritas}"
-                    >Prioritas</span
-                  >
-                </div>
-                <div class="col-span-2">
-                  <p class="text-xs text-gray-600">Judul Laporan</p>
-                  <p class="font-medium" th:text="${selectedTicket.judul}">Judul</p>
-                </div>
-                <div>
-                  <p class="text-xs text-gray-600">Pelapor</p>
-                  <p class="text-sm" th:text="${selectedTicket.pelapor}">Pelapor</p>
-                </div>
-                <div>
-                  <p class="text-xs text-gray-600">Deadline SLA</p>
-                  <p class="text-sm" th:text="${selectedTicket.deadline}">Deadline</p>
-                </div>
-                <div>
-                  <p class="text-xs text-gray-600">Status SLA</p>
-                  <span class="text-xs px-2 py-1 rounded font-semibold"
-                        th:classappend="${selectedTicket.slaStatus == 'BERJALAN'} ? 'bg-green-100 text-green-700' : (${selectedTicket.slaStatus == 'TERTUNDA'} ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700')"
-                        th:text="${selectedTicket.slaStatus}"></span>
-                </div>
-              </div>
-
-              <div>
-                <p class="mb-3 font-semibold text-gray-900">Riwayat Update Progress</p>
-                <div class="space-y-3">
-                  <div
-                    th:each="progress : ${selectedTicket.progressHistory}"
-                    class="p-3 border-l-4 border-blue-500 bg-blue-50 rounded"
-                  >
-                    <div class="flex items-start justify-between mb-2">
-                      <div
-                        class="flex items-center gap-2 text-sm text-gray-700"
-                      >
-                        <i data-lucide="clock" class="w-4 h-4"></i>
-                        <span th:text="${progress.tanggal}">Tanggal</span>
-                      </div>
-                      <span
-                        class="text-xs px-2 py-0.5 rounded border border-gray-300"
-                        th:text="${progress.petugas}"
-                        >Petugas</span
-                      >
-                    </div>
-                    <p
-                      class="text-sm text-gray-800"
-                      th:text="${progress.keterangan}"
-                    >Keterangan</p>
-                    <p class="text-xs text-gray-600 mt-1">
-                      Estimasi selesai:
-                      <span th:text="${progress.estimasi}">Estimasi</span>
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <form
-                th:action="@{/admin/home}"
-                method="get"
-                class="space-y-4 border-t border-gray-200 pt-6"
-              >
-                <input
-                  type="hidden"
-                  name="id"
-                  th:value="${selectedTicket.id}"
-                />
-                <div>
-                  <label for="progressNote" class="mb-2 block text-sm text-gray-900"
-                    >Keterangan Update
-                    <span class="text-red-500">*</span></label
-                  >
-                  <textarea
-                    id="progressNote"
-                    name="progressNote"
-                    rows="4"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    placeholder="Minimal 10 karakter"
-                  ></textarea>
-                </div>
-                <div>
-                  <label for="estimatedCompletion" class="mb-2 block text-sm text-gray-900"
-                    >Estimasi Waktu Penyelesaian (Opsional)</label
-                  >
-                  <input
-                    id="estimatedCompletion"
-                    type="datetime-local"
-                    name="estimatedCompletion"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <div class="flex items-start gap-2">
-                    <i
-                      data-lucide="alert-circle"
-                      class="w-4 h-4 text-blue-600 mt-0.5"
-                    ></i>
-                    <div class="text-xs text-blue-800">
-                      Update progress akan dikirim ke pelapor melalui
-                      notifikasi.
-                    </div>
-                  </div>
-                </div>
-                <div class="flex gap-3 pt-4">
-                  <button
-                    type="submit"
-                    class="flex-1 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700"
-                  >Kirim Update Progress</button>
-                  <button type="button" class="flex-1 border border-gray-300 py-2 rounded-md hover:bg-gray-50">
-                    Batal
-                  </button>
-                </div>
-              </form>
-
-              <!-- FR-JDA: Jeda / Lanjutkan SLA -->
-              <div class="border-t border-gray-200 pt-6 mt-6">
-                <h3 class="font-semibold text-gray-900 mb-3">Pengaturan Waktu SLA</h3>
-                <div class="flex gap-3">
-                  <button type="button" id="pauseSlaBtn"
-                          class="flex-1 bg-yellow-600 text-white py-2 rounded-md hover:bg-yellow-700"
-                          th:if="${selectedTicket.slaStatus == 'BERJALAN'}">
-                    <i data-lucide="pause-circle" class="w-4 h-4 inline mr-1"></i>
-                    Jeda SLA
-                  </button>
-                  <form th:action="@{/admin/dinas/resume-sla}" method="post" class="flex-1">
-                    <input type="hidden" name="taskId" th:value="${selectedTicket.id}" />
-                    <button type="submit"
-                            class="w-full bg-green-600 text-white py-2 rounded-md hover:bg-green-700"
-                            th:if="${selectedTicket.slaStatus == 'TERTUNDA'}">
-                      <i data-lucide="play-circle" class="w-4 h-4 inline mr-1"></i>
-                      Lanjutkan SLA
-                    </button>
-                  </form>
-                </div>
-              </div>
-
-              <!-- FR-JDA: Modal Jeda SLA -->
-              <div id="pauseSlaModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
-                <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4">
-                  <h3 class="text-lg font-semibold text-gray-900 mb-4">Jeda Waktu SLA</h3>
-                  <form th:action="@{/admin/dinas/pause-sla}" method="post">
-                    <input type="hidden" name="taskId" th:value="${selectedTicket.id}" />
-                    <div class="mb-4">
-                      <label class="block text-sm font-medium text-gray-700 mb-2">Alasan Jeda</label>
-                      <textarea name="reason" rows="3" required minlength="5"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md"
-                                placeholder="Minimal 5 karakter"></textarea>
-                    </div>
-                    <div class="flex gap-3">
-                      <button type="submit"
-                              class="flex-1 bg-yellow-600 text-white py-2 rounded-md hover:bg-yellow-700">
-                        Konfirmasi Jeda
-                      </button>
-                      <button type="button" id="cancelPauseBtn"
-                              class="flex-1 border border-gray-300 py-2 rounded-md hover:bg-gray-50">
-                        Batal
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-              <script>
-              document.addEventListener('DOMContentLoaded', function() {
-                var pauseBtn = document.getElementById('pauseSlaBtn');
-                var modal = document.getElementById('pauseSlaModal');
-                var cancelBtn = document.getElementById('cancelPauseBtn');
-                if (pauseBtn && modal) {
-                  pauseBtn.addEventListener('click', function() { modal.classList.remove('hidden'); });
-                }
-                if (cancelBtn && modal) {
-                  cancelBtn.addEventListener('click', function() { modal.classList.add('hidden'); });
-                }
-                modal.addEventListener('click', function(e) {
-                  if (e.target === modal) modal.classList.add('hidden');
-                });
-              });
-              </script>
+              <i data-lucide="arrow-left" class="w-4 h-4"></i>
+              Kembali ke Dashboard
+            </a>
+            <div class="ml-4 pl-4 border-l">
+              <h1 class="text-2xl font-bold text-gray-900">Progress &amp; SLA</h1>
+              <p class="text-sm text-gray-600 mt-1">
+                Pantau status tugas aktif dan pengelolaan SLA
+              </p>
             </div>
           </div>
         </div>
       </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+      <!-- ========================================================= -->
+      <!-- PANEL 1: Permintaan Penundaan Menunggu (SCN-10)            -->
+      <!-- Muncul jika ada TaskPostponement berstatus MENUNGGU        -->
+      <!-- ========================================================= -->
+      <div th:if="${pendingPostponements != null and not #lists.isEmpty(pendingPostponements)}"
+           class="bg-white rounded-xl border-2 border-orange-300 shadow-sm">
+        <div class="px-6 py-4 bg-orange-50 rounded-t-xl flex items-center gap-3">
+          <i data-lucide="alert-circle" class="w-5 h-5 text-orange-600 flex-shrink-0"></i>
+          <div class="flex-1">
+            <h2 class="text-base font-semibold text-orange-900">Permintaan Penundaan Menunggu Persetujuan</h2>
+            <p class="text-xs text-orange-700 mt-0.5">Petugas mengajukan penundaan — setujui untuk jeda SLA otomatis, atau tolak agar tugas tetap berjalan.</p>
+          </div>
+          <span class="text-sm font-bold px-3 py-1 rounded-full bg-orange-200 text-orange-800"
+                th:text="${#lists.size(pendingPostponements)}"></span>
+        </div>
+        <div class="divide-y divide-orange-100">
+          <div th:each="post : ${pendingPostponements}" class="px-6 py-4">
+            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+              <!-- Info penundaan -->
+              <div class="flex-1 space-y-1">
+                <div class="flex items-center gap-2">
+                  <i data-lucide="user" class="w-4 h-4 text-gray-500"></i>
+                  <span class="text-sm font-semibold text-gray-800"
+                        th:text="${post.requestedBy != null ? post.requestedBy.fullName : 'Tidak diketahui'}">Petugas</span>
+                  <span class="text-xs text-gray-400"
+                        th:text="${'— ' + #temporals.format(post.requestedAt, 'dd MMM yyyy HH:mm')}">Waktu</span>
+                </div>
+                <div class="flex items-start gap-2">
+                  <i data-lucide="file-text" class="w-4 h-4 text-gray-400 mt-0.5"></i>
+                  <div>
+                    <p class="text-xs text-gray-500">Tugas:
+                      <span class="font-mono font-medium text-gray-700"
+                            th:text="${post.task != null ? post.task.taskId : '-'}">-</span>
+                    </p>
+                    <p class="text-sm text-gray-700 mt-0.5">
+                      <span class="font-medium">Alasan:</span>
+                      <span th:text="${post.reason}">-</span>
+                    </p>
+                    <p class="text-xs text-gray-500 mt-0.5" th:if="${post.estimatedResumeAt != null}">
+                      Estimasi bisa lanjut:
+                      <span class="font-medium" th:text="${#temporals.format(post.estimatedResumeAt, 'dd MMM yyyy HH:mm')}">-</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <!-- Tombol aksi -->
+              <div class="flex gap-2 flex-shrink-0">
+                <!-- Setujui: ubah status TERTUNDA + pause SLA -->
+                <form th:action="@{/admin/dinas/approve-postponement}" method="post">
+                  <input type="hidden" name="postponementId" th:value="${post.postponementId}" />
+                  <input type="hidden" name="action" value="approve" />
+                  <button type="submit"
+                          class="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 font-medium shadow-sm">
+                    <i data-lucide="check" class="w-4 h-4"></i>
+                    Setujui &amp; Jeda SLA
+                  </button>
+                </form>
+                <!-- Tolak: tugas tetap berjalan -->
+                <form th:action="@{/admin/dinas/approve-postponement}" method="post">
+                  <input type="hidden" name="postponementId" th:value="${post.postponementId}" />
+                  <input type="hidden" name="action" value="reject" />
+                  <button type="submit"
+                          class="inline-flex items-center gap-1.5 px-4 py-2 bg-red-100 text-red-700 text-sm rounded-lg hover:bg-red-200 font-medium border border-red-200">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                    Tolak
+                  </button>
+                </form>
+                <!-- Lihat tugas -->
+                <a th:if="${post.task != null}"
+                   th:href="@{/admin/dinas/progress(id=${post.task.taskId})}"
+                   class="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-sm rounded-lg hover:bg-gray-50 font-medium text-gray-700">
+                  <i data-lucide="eye" class="w-4 h-4"></i>
+                  Detail
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================= -->
+      <!-- PANEL 2: Daftar Tugas + Detail Tugas Terpilih             -->
+      <!-- ========================================================= -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Kolom kiri: Daftar tugas (SEDANG_DIKERJAKAN + TERTUNDA) -->
+        <div class="lg:col-span-4">
+          <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+            <div class="px-5 py-4 border-b border-gray-100">
+              <h2 class="text-base font-semibold text-gray-900">Semua Tugas Aktif</h2>
+              <p class="text-xs text-gray-500 mt-0.5"
+                 th:text="${#lists.size(ticketsInProgress)} + ' tugas (aktif + tertunda)'">0 tugas</p>
+            </div>
+
+            <!-- Legend status -->
+            <div class="px-5 py-2 flex gap-4 text-xs text-gray-500 border-b border-gray-100 bg-gray-50">
+              <span class="flex items-center gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block"></span>Dalam Penanganan
+              </span>
+              <span class="flex items-center gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-yellow-400 inline-block"></span>Tertunda / SLA Dijeda
+              </span>
+            </div>
+
+            <!-- Daftar tiket — klik untuk pilih -->
+            <div class="divide-y divide-gray-100 max-h-[70vh] overflow-y-auto">
+              <th:block th:if="${#lists.isEmpty(ticketsInProgress)}">
+                <div class="flex flex-col items-center justify-center py-12 text-gray-400">
+                  <i data-lucide="inbox" class="w-10 h-10 mb-2"></i>
+                  <p class="text-sm">Tidak ada tugas aktif</p>
+                </div>
+              </th:block>
+
+              <a th:each="ticket : ${ticketsInProgress}"
+                 th:href="@{/admin/dinas/progress(id=${ticket.id})}"
+                 class="block px-5 py-4 hover:bg-blue-50 transition-colors"
+                 th:classappend="${selectedTicket != null and selectedTicket.id == ticket.id} ? 'bg-blue-50 border-l-4 border-blue-500' : (${ticket.statusTask == 'TERTUNDA'} ? 'border-l-4 border-yellow-400' : 'border-l-4 border-transparent')"
+              >
+                <!-- Baris atas: ID + badge status -->
+                <div class="flex items-center justify-between mb-1">
+                  <span class="font-mono text-xs font-bold text-blue-600 truncate max-w-[140px]"
+                        th:text="${ticket.id}">ID</span>
+                  <span class="text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0"
+                        th:classappend="${ticket.statusTask == 'TERTUNDA'} ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'"
+                        th:text="${ticket.statusLabel}">Status</span>
+                </div>
+                <!-- Judul laporan -->
+                <p class="text-sm font-medium text-gray-800 truncate" th:text="${ticket.judul}">Judul</p>
+                <!-- Petugas -->
+                <p class="text-xs text-gray-500 mt-0.5">
+                  Petugas: <span th:text="${ticket.officerName}">-</span>
+                </p>
+                <!-- SLA badges -->
+                <div class="flex items-center gap-2 mt-2">
+                  <span class="text-xs px-1.5 py-0.5 rounded font-medium"
+                        th:classappend="${ticket.slaStatus == 'BERJALAN'} ? 'bg-green-100 text-green-700' : (${ticket.slaStatus == 'TERTUNDA'} ? 'bg-yellow-100 text-yellow-700' : (${ticket.slaStatus == 'TERLAMBAT'} ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'))"
+                        th:text="'SLA: ' + ${ticket.slaStatus}">SLA</span>
+                </div>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Kolom kanan: Detail + kontrol SLA untuk tiket terpilih -->
+        <div class="lg:col-span-8">
+          <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+
+            <!-- State kosong: belum ada tiket dipilih -->
+            <div th:if="${selectedTicket == null}"
+                 class="flex flex-col items-center justify-center h-80 text-gray-400">
+              <i data-lucide="mouse-pointer-click" class="w-12 h-12 mb-3"></i>
+              <p class="font-medium">Pilih tiket dari daftar kiri</p>
+              <p class="text-sm mt-1">untuk melihat detail dan mengatur SLA</p>
+            </div>
+
+            <!-- State: tiket terpilih -->
+            <div th:if="${selectedTicket != null}">
+
+              <!-- Header tiket terpilih -->
+              <div class="px-6 py-5 border-b border-gray-100 flex items-start justify-between gap-4">
+                <div>
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-xs font-bold px-2 py-0.5 rounded-full"
+                          th:classappend="${selectedTicket.statusTask == 'TERTUNDA'} ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'"
+                          th:text="${selectedTicket.statusLabel}">Status</span>
+                    <span class="font-mono text-xs text-gray-500" th:text="${selectedTicket.id}">ID</span>
+                  </div>
+                  <h2 class="text-lg font-semibold text-gray-900" th:text="${selectedTicket.judul}">Judul</h2>
+                  <p class="text-sm text-gray-500 mt-0.5">
+                    Petugas: <span class="font-medium" th:text="${selectedTicket.officerName}">-</span>
+                    &middot;
+                    Pelapor: <span th:text="${selectedTicket.pelapor}">-</span>
+                  </p>
+                </div>
+                <!-- SLA info box -->
+                <div class="text-right flex-shrink-0 bg-gray-50 rounded-lg px-4 py-3 min-w-[160px]">
+                  <p class="text-xs text-gray-500 mb-1">Status SLA</p>
+                  <span class="text-sm font-bold px-2 py-0.5 rounded"
+                        th:classappend="${selectedTicket.slaStatus == 'BERJALAN'} ? 'bg-green-100 text-green-700' : (${selectedTicket.slaStatus == 'TERTUNDA'} ? 'bg-yellow-100 text-yellow-700' : (${selectedTicket.slaStatus == 'TERLAMBAT'} ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'))"
+                        th:text="${selectedTicket.slaStatus}">-</span>
+                  <p class="text-xs text-gray-500 mt-2">Deadline</p>
+                  <p class="text-sm font-medium text-gray-800" th:text="${selectedTicket.deadline}">-</p>
+                </div>
+              </div>
+
+              <div class="px-6 py-5 space-y-6">
+
+                <!-- ------------------------------------------------- -->
+                <!-- KONTROL SLA — Tombol Jeda / Lanjutkan              -->
+                <!-- ------------------------------------------------- -->
+                <div class="rounded-xl border-2 p-5"
+                     th:classappend="${selectedTicket.statusTask == 'TERTUNDA'} ? 'border-yellow-200 bg-yellow-50' : 'border-blue-100 bg-blue-50'">
+                  <h3 class="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <i data-lucide="timer" class="w-4 h-4 text-gray-600"></i>
+                    Manajemen SLA
+                  </h3>
+
+                  <!-- Alasan penundaan dari petugas (jika ada) -->
+                  <div th:if="${selectedTicket.postponementReason != null}"
+                       class="mb-4 p-3 rounded-lg border-l-4 border-orange-400 bg-orange-50">
+                    <p class="text-xs font-semibold text-orange-800 flex items-center gap-1.5 mb-1">
+                      <i data-lucide="message-square" class="w-3.5 h-3.5"></i>
+                      Alasan Penundaan dari Petugas
+                    </p>
+                    <p class="text-sm text-orange-900" th:text="${selectedTicket.postponementReason}">-</p>
+                  </div>
+
+                  <!-- Tugas SEDANG_DIKERJAKAN: tampilkan tombol Jeda SLA -->
+                  <div th:if="${selectedTicket.statusTask == 'SEDANG_DIKERJAKAN'}">
+                    <p class="text-xs text-blue-700 mb-3">
+                      Tugas sedang berjalan. Gunakan tombol di bawah untuk menjeda SLA jika ada kendala teknis atau menyetujui penundaan dari petugas.
+                    </p>
+                    <div class="flex gap-3 flex-wrap">
+                      <button type="button" id="pauseSlaBtn"
+                              th:if="${selectedTicket.slaStatus == 'BERJALAN' or selectedTicket.slaStatus == 'TERLAMBAT' or selectedTicket.slaStatus == '-'}"
+                              class="inline-flex items-center gap-2 px-4 py-2 bg-yellow-500 text-white text-sm rounded-lg hover:bg-yellow-600 font-medium shadow-sm"
+                              @click="pauseOpen = true">
+                        <i data-lucide="pause-circle" class="w-4 h-4"></i>
+                        Jeda SLA
+                      </button>
+                      <span th:if="${selectedTicket.slaStatus == 'TERTUNDA'}"
+                            class="text-xs text-yellow-700 bg-yellow-100 px-3 py-2 rounded-lg">
+                        SLA sudah dalam status dijeda
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Tugas TERTUNDA: tampilkan tombol Lanjutkan SLA -->
+                  <div th:if="${selectedTicket.statusTask == 'TERTUNDA'}">
+                    <p class="text-xs text-yellow-800 mb-3">
+                      Tugas sedang tertunda. Klik tombol di bawah untuk melanjutkan tugas dan memperpanjang deadline SLA otomatis.
+                    </p>
+                    <form th:action="@{/admin/dinas/resume-sla}" method="post">
+                      <input type="hidden" name="taskId" th:value="${selectedTicket.id}" />
+                      <button type="submit"
+                              class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 font-medium shadow-sm">
+                        <i data-lucide="play-circle" class="w-4 h-4"></i>
+                        Lanjutkan SLA &amp; Resume Tugas
+                      </button>
+                    </form>
+                  </div>
+                </div>
+
+                <!-- ------------------------------------------------- -->
+                <!-- RIWAYAT UPDATE PROGRESS                           -->
+                <!-- ------------------------------------------------- -->
+                <div>
+                  <h3 class="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <i data-lucide="clock" class="w-4 h-4 text-gray-500"></i>
+                    Riwayat Progress
+                  </h3>
+                  <div th:if="${#lists.isEmpty(selectedTicket.progressHistory)}"
+                       class="text-sm text-gray-400 italic py-2">
+                    Belum ada riwayat progress.
+                  </div>
+                  <div class="space-y-3">
+                    <div th:each="progress : ${selectedTicket.progressHistory}"
+                         class="p-3 border-l-4 border-blue-400 bg-blue-50 rounded-r-lg">
+                      <div class="flex items-start justify-between mb-1">
+                        <div class="flex items-center gap-2 text-sm text-gray-700">
+                          <i data-lucide="clock" class="w-4 h-4"></i>
+                          <span th:text="${progress.tanggal}">Tanggal</span>
+                        </div>
+                        <span class="text-xs px-2 py-0.5 rounded border border-gray-200 text-gray-600"
+                              th:text="${progress.petugas}">Petugas</span>
+                      </div>
+                      <p class="text-sm text-gray-800" th:text="${progress.keterangan}">Keterangan</p>
+                      <p class="text-xs text-gray-500 mt-1">
+                        Estimasi selesai: <span th:text="${progress.estimasi}">-</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+              </div><!-- end px-6 py-5 -->
+            </div><!-- end selectedTicket != null -->
+          </div>
+        </div><!-- end col kanan -->
+      </div><!-- end grid -->
+
     </main>
+
+    <!-- ============================================================ -->
+    <!-- MODAL: Jeda SLA — muncul saat klik "Jeda SLA"                -->
+    <!-- ============================================================ -->
+    <div th:if="${selectedTicket != null}"
+         id="pauseSlaModal"
+         class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
+         x-cloak
+         x-show="pauseOpen"
+         @click.self="pauseOpen = false">
+      <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center">
+            <i data-lucide="pause-circle" class="w-5 h-5 text-yellow-600"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-semibold text-gray-900">Jeda Waktu SLA</h3>
+            <p class="text-xs text-gray-500">Deadline akan diperpanjang saat SLA dilanjutkan kembali</p>
+          </div>
+        </div>
+        <form th:action="@{/admin/dinas/pause-sla}" method="post">
+          <input type="hidden" name="taskId" th:value="${selectedTicket.id}" />
+          <div class="mb-4">
+            <label for="pauseReason" class="block text-sm font-medium text-gray-700 mb-1.5">
+              Alasan Jeda <span class="text-red-500">*</span>
+            </label>
+            <textarea id="pauseReason" name="reason" rows="3" required minlength="5"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      placeholder="Contoh: Menunggu material, cuaca buruk, dll. (min. 5 karakter)"></textarea>
+          </div>
+          <div class="flex gap-3">
+            <button type="submit"
+                      class="flex-1 bg-yellow-500 text-white py-2 rounded-lg hover:bg-yellow-600 font-medium text-sm">
+              Konfirmasi Jeda SLA
+            </button>
+            <button type="button" id="cancelPauseBtn"
+                      class="flex-1 border border-gray-300 py-2 rounded-lg hover:bg-gray-50 text-sm text-gray-700"
+                      @click="pauseOpen = false">
+              Batal
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
+
+  <th:block layout:fragment="extraScripts">
+    <!-- Modal handled by Alpine (x-data/x-show) -->
+  </th:block>
 </html>

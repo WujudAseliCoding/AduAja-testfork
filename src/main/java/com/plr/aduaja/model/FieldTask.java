@@ -1,10 +1,12 @@
 package com.plr.aduaja.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
+@JsonIgnoreProperties({"report"})
 @Table(name = "field_tasks")
 public class FieldTask extends BaseEntity {
 

@@ -94,10 +94,10 @@
         <form th:action="@{/admin/disposisi}" method="post" class="space-y-6">
           <input type="hidden" name="id" th:value="${selectedDisposition.id}" />
 
-          <div th:if="${selectedDisposition.status == 'DIDISPOSISI'}" class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div th:if="${selectedDisposition.status == 'DALAM_PENINJAUAN'}" class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <div class="flex items-center gap-2 text-blue-800">
               <i data-lucide="info" class="w-5 h-5"></i>
-              <span class="font-semibold">Laporan ini sudah didisposisikan ke <span th:text="${selectedDisposition.dinasRekomendasi}"></span>.</span>
+              <span class="font-semibold">Laporan ini sudah dikirim ke dinas (Dalam Peninjauan) <span th:text="${selectedDisposition.dinasRekomendasi}"></span>.</span>
             </div>
           </div>
 
@@ -280,11 +280,11 @@
             <button
               type="submit"
               class="aduaja-btn-primary flex-1 flex items-center justify-center gap-2 py-3"
-              th:disabled="${selectedDisposition.status == 'DIDISPOSISI'}"
-              th:classappend="${selectedDisposition.status == 'DIDISPOSISI'} ? 'opacity-50 cursor-not-allowed' : ''"
+              th:disabled="${selectedDisposition.status == 'DALAM_PENINJAUAN'}"
+              th:classappend="${selectedDisposition.status == 'DALAM_PENINJAUAN'} ? 'opacity-50 cursor-not-allowed' : ''"
             >
               <i data-lucide="send" class="w-4 h-4"></i>
-              <span th:text="${selectedDisposition.status == 'DIDISPOSISI' ? 'Sudah Didisposisikan' : 'Kirim ke Dinas'}">Kirim ke Dinas</span>
+              <span th:text="${selectedDisposition.status == 'DALAM_PENINJAUAN' ? 'Sudah Dikirim ke Dinas' : 'Kirim ke Dinas'}">Kirim ke Dinas</span>
             </button>
             <a
               th:href="@{/admin/dashboard(tab='disposisi')}"

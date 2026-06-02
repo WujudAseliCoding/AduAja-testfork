@@ -238,7 +238,8 @@
                       <img
                         th:src="${selectedReport['foto']}"
                         alt="Foto bukti"
-                        class="w-full h-64 object-cover"
+                        class="w-full h-64 object-cover cursor-pointer"
+                        data-lightbox
                       />
                     </div>
                   </div>
@@ -317,7 +318,7 @@
                         <label
                           th:each="petugas : ${petugasList}"
                           class="flex items-start gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all hover:bg-green-50"
-                          th:classappend="${petugas['statusKetersediaan'] == 'Siap Bertugas'} ? 'border-gray-200 hover:border-green-300' : 'border-gray-200 opacity-60 cursor-not-allowed'"
+                          th:classappend="${petugas['statusKetersediaan'] == 'Siap Bertugas' or petugas['statusKetersediaan'] == 'Sedang Bertugas'} ? 'border-gray-200 hover:border-green-300' : 'border-gray-200 opacity-60 cursor-not-allowed'"
                           th:data-nama="${petugas['nama']}"
                           th:data-nip="${petugas['nip']}"
                           th:data-wilayah="${petugas['wilayahTugas']}"
@@ -329,7 +330,7 @@
                             name="petugasId"
                             th:value="${petugas['id']}"
                             class="mt-1 w-4 h-4 text-blue-600"
-                            th:disabled="${petugas['statusKetersediaan'] != 'Siap Bertugas'}"
+                            th:disabled="${petugas['statusKetersediaan'] == 'Istirahat' or petugas['statusKetersediaan'] == 'Selesai Shift'}"
                             required
                           />
                           <div class="flex-1">
@@ -344,11 +345,15 @@
                                   th:text="|NIP: ${petugas['nip']}|"
                                 ></p>
                               </div>
+                              <div class="flex items-center gap-2">
                               <span
                                 class="text-xs px-3 py-1 rounded-full font-semibold"
                                 th:classappend="${petugas['statusKetersediaan'] == 'Siap Bertugas'} ? 'bg-green-100 text-green-700' : (${petugas['statusKetersediaan'] == 'Sedang Bertugas'} ? 'bg-blue-100 text-blue-700' : (${petugas['statusKetersediaan'] == 'Istirahat'} ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-700'))"
                                 th:text="${petugas['statusKetersediaan']}"
                               ></span>
+                              <span th:if="${petugas['statusKetersediaan'] == 'Istirahat' or petugas['statusKetersediaan'] == 'Selesai Shift'}"
+                                    class="text-xs text-red-500">(Tidak tersedia)</span>
+                              </div>
                             </div>
                             <div
                               class="grid grid-cols-2 gap-3 text-xs text-gray-600 mt-3"

@@ -198,7 +198,7 @@ public class DataSeeder implements CommandLineRunner {
         r.setDescription(desc);
         r.setCategory(category);
         r.setRegion(region);
-        r.setStatus(ReportStatus.DIVALIDASI);
+        r.setStatus(ReportStatus.DITERIMA);
         r.setReporter(reporter);
         r.setLocationHint(locationHint);
         r.setLatitude(lat);

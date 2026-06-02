@@ -49,6 +49,16 @@ public interface ReportService {
     List<Report> getReportsByStatusAndRegion(Report.ReportStatus status, String regionId);
     String generateTicketNumber();
 
+    void addReportRevision(Report report, Report.ReportStatus oldStatus,
+                           Report.ReportStatus newStatus, String notes, String changedBy);
+
+    /**
+     * Cascade status change to all active child tickets in a merge group.
+     * Child tickets will mirror the parent status.
+     */
+    void cascadeStatusToChildren(String parentReportId, Report.ReportStatus newStatus,
+                                  String notes, String changedBy);
+
     // ===========================
     // BACKWARD COMPATIBILITY (untuk WebController lama)
     // ===========================
@@ -64,7 +74,7 @@ public interface ReportService {
     }
 
     default List<Report> getReportsForDisposisi() {
-        return getReportsByStatus(Report.ReportStatus.DIVALIDASI);
+        return getReportsByStatus(Report.ReportStatus.DITERIMA);
     }
 
     default Optional<Report> getReportById(String id) {
@@ -89,6 +99,9 @@ public interface ReportService {
         dto.setLatitude(report.getLatitude());
         dto.setLongitude(report.getLongitude());
         dto.setPhotoBase64(report.getPhotoBase64());
+        if (report.getPhotoTakenAt() != null) {
+            dto.setPhotoTakenAt(report.getPhotoTakenAt().toString());
+        }
         if (report.getCategory() != null) {
             dto.setCategoryId(report.getCategory().getCategoryId());
         }

@@ -178,10 +178,8 @@ public class UserServiceImpl implements UserService {  // ← POLYMORPHISM
         if (userRepository.existsByEmail(dto.getEmail())) {
             throw new RuntimeException("Email sudah terdaftar");
         }
-        if (dto.getPhoneNumber() != null && !dto.getPhoneNumber().isBlank()
-                && userRepository.existsByPhoneNumber(dto.getPhoneNumber())) {
-            throw new RuntimeException("Nomor HP sudah terdaftar");
-        }
+        // Tidak cek uniqueness nomor HP — satu orang boleh punya akun warga dan petugas
+        // dengan nomor HP yang sama (kolom phone_number memang tidak unique di DB)
 
         User user = new User();
         user.setFullName(dto.getFullName());

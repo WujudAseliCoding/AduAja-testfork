@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -57,6 +58,10 @@ public interface ReportRepository extends JpaRepository<Report, String> {
 
     List<Report> findByParentReportIsNull();
 
+    List<Report> findByParentReportReportId(String parentReportId);
+
+    long countByParentReportReportId(String parentReportId);
+
     List<Report> findByRegionRegionId(String regionId);
 
     List<Report> findByStatusAndRegionRegionIdOrderBySubmittedAtDesc(Report.ReportStatus status, String regionId);
@@ -64,4 +69,15 @@ public interface ReportRepository extends JpaRepository<Report, String> {
     long countByStatusAndRegionRegionId(Report.ReportStatus status, String regionId);
 
     List<Report> findByCategoryCategoryId(String categoryId);
+
+    @Query("SELECT r FROM Report r WHERE r.category.categoryId = :categoryId " +
+           "AND r.latitude BETWEEN :minLat AND :maxLat " +
+           "AND r.longitude BETWEEN :minLng AND :maxLng")
+    List<Report> findByCategoryAndCoordinateRange(
+            @Param("categoryId") String categoryId,
+            @Param("minLat") BigDecimal minLat,
+            @Param("maxLat") BigDecimal maxLat,
+            @Param("minLng") BigDecimal minLng,
+            @Param("maxLng") BigDecimal maxLng
+    );
 }

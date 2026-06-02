@@ -1,191 +1,350 @@
 <html
-  lang="id"
-  xmlns:th="http://www.thymeleaf.org"
-  xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
-  layout:decorate="~{layouts/master}"
+    lang="id"
+    xmlns:th="http://www.thymeleaf.org"
+    xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+    layout:decorate="~{layouts/master}"
 >
-  <th:block layout:fragment="extraHead">
-    <title>AduAja - Kelola Petugas</title>
-    <style>
-      [x-cloak] { display: none !important; }
-    </style>
-  </th:block>
-
-  <div layout:fragment="content" class="min-h-screen bg-gray-50">
-    <header class="bg-white border-b sticky top-0 z-10">
-      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div class="flex items-center justify-between">
-          <div>
-            <h1 class="text-xl font-bold text-gray-900">Kelola Petugas</h1>
-            <p class="text-sm text-gray-600">Daftar dan tambah petugas lapangan</p>
-          </div>
-          <a th:href="@{/admin/dinas/dashboard}"
-             class="flex items-center gap-2 border border-gray-300 px-3 py-2 rounded-md text-sm hover:bg-gray-50">
-            <i data-lucide="arrow-left" class="w-4 h-4"></i>
-            Kembali ke Dashboard
-          </a>
-        </div>
-      </div>
-    </header>
-
-    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div th:if="${success}" class="mb-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm"
-           th:text="${success}"></div>
-      <div th:if="${error}" class="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm"
-           th:text="${error}"></div>
-
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Form Tambah Petugas -->
-        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-          <h2 class="text-lg font-semibold text-gray-900 mb-4">Tambah Petugas Baru</h2>
-          <form th:action="@{/admin/dinas/petugas/create}" method="post" class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap</label>
-              <input type="text" name="fullName" required
-                     class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">NIP</label>
-              <input type="text" name="nip"
-                     class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <input type="email" name="email" required
-                     class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Nomor HP</label>
-              <input type="text" name="phoneNumber"
-                     class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Wilayah Tugas</label>
-              <select name="wilayahTugasRegionId"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-                <option value="">-- Pilih Wilayah --</option>
-                <option th:each="r : ${regions}" th:value="${r.regionId}" th:text="${r.regionName}"></option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-              <input type="password" name="password" required minlength="6"
-                     class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-              <p class="text-xs text-gray-500 mt-1">Minimal 6 karakter</p>
-            </div>
-            <button type="submit"
-                    class="w-full bg-blue-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-blue-700">
-              <i data-lucide="user-plus" class="w-4 h-4 inline mr-1"></i>
-              Buat Petugas
-            </button>
-          </form>
-        </div>
-
-        <!-- Daftar Petugas -->
-        <div class="lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-          <h2 class="text-lg font-semibold text-gray-900 mb-4">Daftar Petugas</h2>
-          <div th:if="${#lists.isEmpty(petugasList)}" class="text-center py-12 text-gray-400">
-            <i data-lucide="users" class="w-12 h-12 mx-auto mb-3"></i>
-            <p class="text-sm">Belum ada petugas terdaftar</p>
-          </div>
-          <div th:unless="${#lists.isEmpty(petugasList)}" class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="border-b text-left text-gray-600">
-                  <th class="pb-3 font-medium">Nama</th>
-                  <th class="pb-3 font-medium">NIP</th>
-                  <th class="pb-3 font-medium">Email</th>
-                  <th class="pb-3 font-medium">Wilayah Tugas</th>
-                  <th class="pb-3 font-medium">Status</th>
-                  <th class="pb-3 font-medium">Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr th:each="p : ${petugasList}" class="border-b hover:bg-gray-50">
-                  <td class="py-3 font-medium text-gray-900" th:text="${p['nama']}">Nama</td>
-                  <td class="py-3 text-gray-600" th:text="${p['nip']}">NIP</td>
-                  <td class="py-3 text-gray-600" th:text="${p['kontak']}">Email</td>
-                  <td class="py-3 text-gray-600" th:text="${p['wilayahTugas']}">Wilayah</td>
-                  <td class="py-3">
-                    <span class="px-2 py-1 rounded-full text-xs font-medium"
-                          th:classappend="${p['statusKetersediaan'] == 'Siap Bertugas'} ? 'bg-green-100 text-green-700' : (${p['statusKetersediaan'] == 'Sedang Bertugas'} ? 'bg-blue-100 text-blue-700' : (${p['statusKetersediaan'] == 'Istirahat'} ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-700'))"
-                          th:text="${p['statusKetersediaan']}">Active</span>
-                  </td>
-                  <td class="py-3">
-                    <button type="button"
-                            class="text-blue-600 hover:text-blue-800 text-xs font-semibold edit-petugas-btn"
-                            th:data-id="${p['id']}"
-                            th:data-nip="${p['nip']}"
-                            th:data-wilayah="${p['wilayahTugas']}">
-                      Edit
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </main>
-
-    <!-- Modal Edit NIP & Wilayah Petugas -->
-    <div id="editPetugasModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
-      <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Edit Profil Petugas</h3>
-        <form th:action="@{/admin/dinas/petugas/update-profile}" method="post">
-          <input type="hidden" name="petugasId" id="editPetugasId" />
-          <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">NIP</label>
-            <input type="text" name="nip" id="editPetugasNip"
-                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-          </div>
-          <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">Wilayah Tugas</label>
-            <select name="wilayahTugasRegionId" id="editPetugasWilayah"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-              <option value="">-- Pilih Wilayah --</option>
-              <option th:each="r : ${regions}" th:value="${r.regionId}" th:text="${r.regionName}"></option>
-            </select>
-          </div>
-          <div class="flex gap-3">
-            <button type="submit"
-                    class="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-blue-700">
-              Simpan
-            </button>
-            <button type="button" id="cancelEditBtn"
-                    class="flex-1 border border-gray-300 py-2 rounded-lg text-sm hover:bg-gray-50">
-              Batal
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      var modal = document.getElementById('editPetugasModal');
-      var cancelBtn = document.getElementById('cancelEditBtn');
-      document.querySelectorAll('.edit-petugas-btn').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-          document.getElementById('editPetugasId').value = this.getAttribute('data-id');
-          document.getElementById('editPetugasNip').value = this.getAttribute('data-nip') !== '-' ? this.getAttribute('data-nip') : '';
-          var wilayahName = this.getAttribute('data-wilayah');
-          var select = document.getElementById('editPetugasWilayah');
-          for (var i = 0; i < select.options.length; i++) {
-            if (select.options[i].text === wilayahName) {
-              select.value = select.options[i].value;
-              break;
+    <th:block layout:fragment="extraHead">
+        <title>AduAja - Kelola Petugas</title>
+        <style>
+            [x-cloak] {
+                display: none !important;
             }
-          }
-          modal.classList.remove('hidden');
-        });
-      });
-      if (cancelBtn) {
-        cancelBtn.addEventListener('click', function() { modal.classList.add('hidden'); });
-      }
-      modal.addEventListener('click', function(e) {
-        if (e.target === modal) modal.classList.add('hidden');
-      });
-    });
-    </script>
-  </div>
+        </style>
+    </th:block>
+
+    <div layout:fragment="content" class="min-h-screen bg-gray-50">
+        <header class="aduaja-header sticky top-0 z-20 border-b">
+            <div class="px-6 py-5">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <a
+                            th:href="@{/admin/dinas/dashboard}"
+                            class="aduaja-btn-secondary inline-flex items-center gap-2 text-sm"
+                        >
+                            <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                            Kembali ke Dashboard
+                        </a>
+                        <div class="ml-4 pl-4 border-l">
+                            <h1 class="text-2xl font-bold text-gray-900">
+                                Kelola Petugas
+                            </h1>
+                            <p class="text-sm text-gray-600 mt-1">
+                                Daftar dan tambah petugas lapangan
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div
+                th:if="${success}"
+                class="mb-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm"
+                th:text="${success}"
+            ></div>
+            <div
+                th:if="${error}"
+                class="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm"
+                th:text="${error}"
+            ></div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Form Tambah Petugas -->
+                <div
+                    class="bg-white rounded-xl border border-gray-100 shadow-sm p-6"
+                >
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">
+                        Tambah Petugas Baru
+                    </h2>
+                    <form
+                        th:action="@{/admin/dinas/petugas/create}"
+                        method="post"
+                        class="space-y-4"
+                    >
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                                >Nama Lengkap</label
+                            >
+                            <input
+                                type="text"
+                                name="fullName"
+                                required
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                                >NIP</label
+                            >
+                            <input
+                                type="text"
+                                name="nip"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                                >Email</label
+                            >
+                            <input
+                                type="email"
+                                name="email"
+                                required
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                                >Nomor HP</label
+                            >
+                            <input
+                                type="text"
+                                name="phoneNumber"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                                >Wilayah Tugas</label
+                            >
+                            <input
+                                type="text"
+                                readonly
+                                th:value="${adminAgencyRegionName != null ? adminAgencyRegionName : 'Otomatis dari dinas'}"
+                                class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-500 cursor-not-allowed"
+                            />
+                            <input
+                                type="hidden"
+                                name="wilayahTugasRegionId"
+                                th:value="${adminAgencyRegionId}"
+                            />
+                            <p class="text-xs text-gray-400 mt-1">
+                                Wilayah sesuai dinas Anda (otomatis)
+                            </p>
+                        </div>
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                                >Password</label
+                            >
+                            <input
+                                type="password"
+                                name="password"
+                                required
+                                minlength="6"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                            />
+                            <p class="text-xs text-gray-500 mt-1">
+                                Minimal 6 karakter
+                            </p>
+                        </div>
+                        <button
+                            type="submit"
+                            class="w-full bg-blue-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-blue-700"
+                        >
+                            <i
+                                data-lucide="user-plus"
+                                class="w-4 h-4 inline mr-1"
+                            ></i>
+                            Buat Petugas
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Daftar Petugas -->
+                <div
+                    class="lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm p-6"
+                >
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">
+                        Daftar Petugas
+                    </h2>
+                    <div
+                        th:if="${#lists.isEmpty(petugasList)}"
+                        class="text-center py-12 text-gray-400"
+                    >
+                        <i
+                            data-lucide="users"
+                            class="w-12 h-12 mx-auto mb-3"
+                        ></i>
+                        <p class="text-sm">Belum ada petugas terdaftar</p>
+                    </div>
+                    <div
+                        th:unless="${#lists.isEmpty(petugasList)}"
+                        class="overflow-x-auto"
+                    >
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b text-left text-gray-600">
+                                    <th class="pb-3 font-medium">Nama</th>
+                                    <th class="pb-3 font-medium">NIP</th>
+                                    <th class="pb-3 font-medium">Email</th>
+                                    <th class="pb-3 font-medium">
+                                        Wilayah Tugas
+                                    </th>
+                                    <th class="pb-3 font-medium">Status</th>
+                                    <th class="pb-3 font-medium">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr
+                                    th:each="p : ${petugasList}"
+                                    class="border-b hover:bg-gray-50"
+                                >
+                                    <td
+                                        class="py-3 font-medium text-gray-900"
+                                        th:text="${p['nama']}"
+                                    >
+                                        Nama
+                                    </td>
+                                    <td
+                                        class="py-3 text-gray-600"
+                                        th:text="${p['nip']}"
+                                    >
+                                        NIP
+                                    </td>
+                                    <td
+                                        class="py-3 text-gray-600"
+                                        th:text="${p['kontak']}"
+                                    >
+                                        Email
+                                    </td>
+                                    <td
+                                        class="py-3 text-gray-600"
+                                        th:text="${p['wilayahTugas']}"
+                                    >
+                                        Wilayah
+                                    </td>
+                                    <td class="py-3">
+                                        <span
+                                            class="px-2 py-1 rounded-full text-xs font-medium"
+                                            th:classappend="${p['statusKetersediaan'] == 'Siap Bertugas'} ? 'bg-green-100 text-green-700' : (${p['statusKetersediaan'] == 'Sedang Bertugas'} ? 'bg-blue-100 text-blue-700' : (${p['statusKetersediaan'] == 'Istirahat'} ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-700'))"
+                                            th:text="${p['statusKetersediaan']}"
+                                            >Active</span
+                                        >
+                                    </td>
+                                    <td class="py-3">
+                                        <button
+                                            type="button"
+                                            class="text-blue-600 hover:text-blue-800 text-xs font-semibold edit-petugas-btn"
+                                            th:data-id="${p['id']}"
+                                            th:data-nip="${p['nip']}"
+                                            th:data-wilayah="${p['wilayahTugas']}"
+                                        >
+                                            Edit
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Modal Edit NIP & Wilayah Petugas -->
+        <div
+            id="editPetugasModal"
+            class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center"
+        >
+            <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                    Edit Profil Petugas
+                </h3>
+                <form
+                    th:action="@{/admin/dinas/petugas/update-profile}"
+                    method="post"
+                >
+                    <input type="hidden" name="petugasId" id="editPetugasId" />
+                    <div class="mb-4">
+                        <label
+                            class="block text-sm font-medium text-gray-700 mb-2"
+                            >NIP</label
+                        >
+                        <input
+                            type="text"
+                            name="nip"
+                            id="editPetugasNip"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        />
+                    </div>
+                    <div class="mb-4">
+                        <label
+                            class="block text-sm font-medium text-gray-700 mb-2"
+                            >Wilayah Tugas</label
+                        >
+                        <select
+                            name="wilayahTugasRegionId"
+                            id="editPetugasWilayah"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        >
+                            <option value="">-- Pilih Wilayah --</option>
+                            <option
+                                th:each="r : ${regions}"
+                                th:value="${r.regionId}"
+                                th:text="${r.regionName}"
+                            ></option>
+                        </select>
+                    </div>
+                    <div class="flex gap-3">
+                        <button
+                            type="submit"
+                            class="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-blue-700"
+                        >
+                            Simpan
+                        </button>
+                        <button
+                            type="button"
+                            id="cancelEditBtn"
+                            class="flex-1 border border-gray-300 py-2 rounded-lg text-sm hover:bg-gray-50"
+                        >
+                            Batal
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var modal = document.getElementById("editPetugasModal");
+                var cancelBtn = document.getElementById("cancelEditBtn");
+                document
+                    .querySelectorAll(".edit-petugas-btn")
+                    .forEach(function (btn) {
+                        btn.addEventListener("click", function () {
+                            document.getElementById("editPetugasId").value =
+                                this.getAttribute("data-id");
+                            document.getElementById("editPetugasNip").value =
+                                this.getAttribute("data-nip") !== "-"
+                                    ? this.getAttribute("data-nip")
+                                    : "";
+                            var wilayahName = this.getAttribute("data-wilayah");
+                            var select =
+                                document.getElementById("editPetugasWilayah");
+                            for (var i = 0; i < select.options.length; i++) {
+                                if (select.options[i].text === wilayahName) {
+                                    select.value = select.options[i].value;
+                                    break;
+                                }
+                            }
+                            modal.classList.remove("hidden");
+                        });
+                    });
+                if (cancelBtn) {
+                    cancelBtn.addEventListener("click", function () {
+                        modal.classList.add("hidden");
+                    });
+                }
+                modal.addEventListener("click", function (e) {
+                    if (e.target === modal) modal.classList.add("hidden");
+                });
+            });
+        </script>
+    </div>
 </html>

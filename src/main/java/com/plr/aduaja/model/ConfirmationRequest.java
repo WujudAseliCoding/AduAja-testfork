@@ -1,10 +1,12 @@
 package com.plr.aduaja.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "confirmation_requests")
+@JsonIgnoreProperties({"report"})
 public class ConfirmationRequest extends BaseEntity {
 
     @Id

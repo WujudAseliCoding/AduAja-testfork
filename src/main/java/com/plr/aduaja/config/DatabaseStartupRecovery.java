@@ -20,7 +20,7 @@ public final class DatabaseStartupRecovery {
     private static final String H2_DB_PATH = resolveDbPath();
     private static final Path DATA_DIR = Paths.get(H2_DB_PATH).getParent();
     private static final String DB_BASE_NAME = Paths.get(H2_DB_PATH).getFileName().toString();
-    private static final String JDBC_URL = "jdbc:h2:file:" + H2_DB_PATH + ";DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE";
+    private static final String JDBC_URL = "jdbc:h2:file:" + H2_DB_PATH + ";DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE";
     private static final DateTimeFormatter BACKUP_TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
 
     private DatabaseStartupRecovery() {

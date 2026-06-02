@@ -2,6 +2,7 @@ package com.plr.aduaja.service;
 
 import com.plr.aduaja.model.FieldTask;
 import com.plr.aduaja.model.FieldTask.TaskStatus;
+import com.plr.aduaja.model.FieldTaskStatusRevision;
 import com.plr.aduaja.model.TaskEvidence;
 import com.plr.aduaja.model.TaskPostponement;
 
@@ -47,6 +48,23 @@ public interface FieldTaskService {
      */
     TaskPostponement requestPostpone(String taskId, String reason, String requestedById, LocalDateTime estimatedResumeAt);
 
+    /**
+     * Ubah status tugas menjadi SEDANG_DIKERJAKAN tanpa side effect.
+     * Tidak mengubah startedAt atau koordinat petugas.
+     */
+    FieldTask resumeTask(String taskId);
+
+    /**
+     * Ubah status tugas menjadi SEDANG_DIKERJAKAN tanpa side effect.
+     */
+    FieldTask setTaskAsSedangDikerjakan(String taskId);
+
+    /**
+     * Ubah status tugas menjadi TERTUNDA tanpa membuat TaskPostponement baru.
+     * Digunakan saat admin menyetujui penundaan yang sudah ada (approvePostponement).
+     */
+    FieldTask setTaskAsTertunda(String taskId);
+
     FieldTask reassignTask(String taskId, String newOfficerId);
 
     long countByStatus(TaskStatus status);
@@ -55,7 +73,11 @@ public interface FieldTaskService {
 
     void saveTaskEvidence(String taskId, String photoUrl, TaskEvidence.EvidenceType type);
 
+    void saveTaskEvidenceDirect(String taskId, String photoUrl, TaskEvidence.EvidenceType type);
+
     List<TaskEvidence> getEvidencesByTaskAndType(String taskId, TaskEvidence.EvidenceType type);
 
     FieldTask closeTaskByAdmin(String taskId);
+
+    List<FieldTaskStatusRevision> getTaskRevisions(String taskId);
 }
