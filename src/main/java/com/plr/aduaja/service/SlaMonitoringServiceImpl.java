@@ -49,7 +49,7 @@ public class SlaMonitoringServiceImpl implements SlaMonitoringService {
                 sla.setCurrentStatus(SlaStatus.TERLAMBAT);
                 slaRecordRepository.save(sla);
 
-                // FR-ESK-02: Auto-set Report.status to TERLAMBAT
+                // Auto-set Report.status to TERLAMBAT
                 Report report = sla.getReport();
                 if (report != null && report.getStatus() != Report.ReportStatus.TERLAMBAT
                         && report.getStatus() != Report.ReportStatus.SELESAI
@@ -70,7 +70,7 @@ public class SlaMonitoringServiceImpl implements SlaMonitoringService {
         }
     }
 
-    // FR-PTG-28: Cron job — pantau batas waktu penundaan tugas tiap jam
+    // Cron job — pantau batas waktu penundaan tugas tiap jam
     @Scheduled(fixedRate = 3600000)
     public void checkOverduePostponements() {
         LocalDateTime now = LocalDateTime.now();
@@ -84,7 +84,7 @@ public class SlaMonitoringServiceImpl implements SlaMonitoringService {
                 long hoursOverdue = Duration.between(postponement.getEstimatedResumeAt(), now).toHours();
                 // Log peringatan — admin perlu meninjau
                 org.slf4j.LoggerFactory.getLogger(SlaMonitoringServiceImpl.class).warn(
-                    "[FR-PTG-28] Pengajuan penundaan ID {} untuk tugas {} sudah melewati estimasi resume "
+                    "Pengajuan penundaan ID {} untuk tugas {} sudah melewati estimasi resume "
                     + "sejak {} jam lalu. Mohon admin meninjau dan mengambil tindakan.",
                     postponement.getPostponementId(),
                     postponement.getTask() != null ? postponement.getTask().getTaskId() : "N/A",
@@ -94,7 +94,7 @@ public class SlaMonitoringServiceImpl implements SlaMonitoringService {
         }
     }
 
-    // FR-PTG-14: Notifikasi Prediktif In-App Petugas (SLA Kritis & Terlewat)
+    // Notifikasi Prediktif In-App Petugas (SLA Kritis & Terlewat)
     @Scheduled(fixedRate = 1800000) // 30 menit
     public void predictiveSlaNotificationAlert() {
         LocalDateTime now = LocalDateTime.now();

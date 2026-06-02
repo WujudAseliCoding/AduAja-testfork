@@ -6,8 +6,8 @@ import java.math.BigDecimal;
  * GeoUtils — Utilitas kalkulasi jarak geografis (Haversine formula).
  *
  * Digunakan untuk:
- *  - Validasi geofencing check-in (FR-PTG-08)
- *  - Validasi jarak petugas ke lokasi tugas sebelum startTask (FR-PTG-18)
+ *  - Validasi geofencing check-in
+ *  - Validasi jarak petugas ke lokasi tugas sebelum startTask
  */
 public final class GeoUtils {
 

@@ -176,7 +176,7 @@
           </div>
 
           <div class="px-6 py-6">
-            <!-- FR-ADM-09: reason wajib sebelum Tolak/Revisi; tombol di-disable sampai terisi -->
+            <!-- reason wajib sebelum Tolak/Revisi; tombol di-disable sampai terisi -->
             <form th:action="@{/admin/validation}" method="post" class="space-y-6"
                   x-data="{ actionType: '', reason: '' }">
               <input type="hidden" name="id" th:value="${selectedReport['id']}" />
@@ -213,7 +213,7 @@
                     <i data-lucide="check" class="w-4 h-4"></i>
                     <span>Terima &amp; Kirim ke Disposisi</span>
                   </button>
-                  <!-- Tolak: disabled sampai reason diisi (FR-ADM-09) -->
+                  <!-- Tolak: disabled sampai reason diisi -->
                   <button name="action" value="rejected" type="submit"
                     @click="actionType = 'rejected'"
                     :disabled="reason.trim().length === 0"
@@ -222,7 +222,7 @@
                     <i data-lucide="x" class="w-4 h-4"></i>
                     <span>Tolak Laporan</span>
                   </button>
-                  <!-- Revisi: disabled sampai reason diisi (FR-ADM-09) -->
+                  <!-- Revisi: disabled sampai reason diisi -->
                   <button name="action" value="revision" type="submit"
                     @click="actionType = 'revision'"
                     :disabled="reason.trim().length === 0"
@@ -261,14 +261,14 @@
         </div>
       </div>
 
-      <!-- 5. AUDIT TRAIL / LOG JEJAK DIGITAL (FR-RSL-22) -->
+      <!-- 5. AUDIT TRAIL / LOG JEJAK DIGITAL -->
       <div class="aduaja-panel" th:if="${selectedReport != null}">
         <div class="aduaja-card-header">
           <h2 class="aduaja-card-title">
             <i data-lucide="history" class="w-5 h-5 text-indigo-500"></i>
             Log Jejak Digital
           </h2>
-          <p class="aduaja-card-subtitle">Riwayat perubahan status dan tindakan yang dilakukan pada tiket ini (FR-RSL-22)</p>
+          <p class="aduaja-card-subtitle">Riwayat perubahan status dan tindakan yang dilakukan pada tiket ini</p>
         </div>
         <div class="px-6 pb-6">
           <!-- Timeline has audit logs -->

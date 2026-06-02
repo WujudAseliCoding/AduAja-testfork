@@ -161,11 +161,11 @@ public class AdminPusatController {
         }
 
         List<Map<String, Object>> panels = new ArrayList<>();
-        panels.add(Map.of("title", "Antrean Laporan", "description", "Daftar laporan masuk yang perlu divalidasi (FR-ADM-01)", "icon", "file", "color", "bg-blue-100 text-blue-600", "href", "/admin/laporan-queue"));
-        panels.add(Map.of("title", "Validasi Laporan", "description", "Periksa dan putuskan kelayakan laporan (FR-ADM-05 s/d 10)", "icon", "check-circle-2", "color", "bg-green-100 text-green-600", "href", "/admin/validation"));
-        panels.add(Map.of("title", "Merge Tiket Duplikat", "description", "Deteksi dan gabungkan laporan serupa (FR-ADM-11 s/d 18)", "icon", "git-merge", "color", "bg-yellow-100 text-yellow-600", "href", "/admin/merge"));
-        panels.add(Map.of("title", "Disposisi ke Dinas", "description", "Kirim laporan ke dinas terkait (FR-DSP-01 s/d 06)", "icon", "send", "color", "bg-purple-100 text-purple-600", "href", "/admin/disposisi"));
-        panels.add(Map.of("title", "Sengketa", "description", "Kelola banding dan resolusi sengketa (FR-RSL-09 s/d 13)", "icon", "scale", "color", "bg-orange-100 text-orange-600", "href", "/admin/sengketa"));
+        panels.add(Map.of("title", "Antrean Laporan", "description", "Daftar laporan masuk yang perlu divalidasi", "icon", "file", "color", "bg-blue-100 text-blue-600", "href", "/admin/laporan-queue"));
+        panels.add(Map.of("title", "Validasi Laporan", "description", "Periksa dan putuskan kelayakan laporan", "icon", "check-circle-2", "color", "bg-green-100 text-green-600", "href", "/admin/validation"));
+        panels.add(Map.of("title", "Merge Tiket Duplikat", "description", "Deteksi dan gabungkan laporan serupa", "icon", "git-merge", "color", "bg-yellow-100 text-yellow-600", "href", "/admin/merge"));
+        panels.add(Map.of("title", "Disposisi ke Dinas", "description", "Kirim laporan ke dinas terkait", "icon", "send", "color", "bg-purple-100 text-purple-600", "href", "/admin/disposisi"));
+        panels.add(Map.of("title", "Sengketa", "description", "Kelola banding dan resolusi sengketa", "icon", "scale", "color", "bg-orange-100 text-orange-600", "href", "/admin/sengketa"));
         model.addAttribute("panels", panels);
 
         Map<String, Object> queueResult = getQueueList(regionId, page, size);
@@ -252,7 +252,7 @@ public class AdminPusatController {
         }
         model.addAttribute("selectedDisposition", selectedDisposition);
 
-        // FR-DSP-02: filter daftar dinas hanya yang beroperasi di region laporan terpilih
+        // filter daftar dinas hanya yang beroperasi di region laporan terpilih
         List<Agency> realAgencies;
         if (selectedDisposition != null) {
             String rptId = String.valueOf(selectedDisposition.get("id"));
@@ -322,7 +322,7 @@ public class AdminPusatController {
         model.addAttribute("selectedReport", selectedReport);
         model.addAttribute("isInDisposisi", isInDisposisi);
 
-        // FR-RSL-22: Audit Trail / Log Jejak Digital
+        // Audit Trail / Log Jejak Digital
         // Render komponen linimasa vertikal dari audit log tiket yang dipilih
         List<Map<String, Object>> auditLogs = new ArrayList<>();
         if (id != null && !id.trim().isEmpty()) {
@@ -745,7 +745,7 @@ public class AdminPusatController {
         }
         model.addAttribute("selectedReport", selected);
 
-        // FR-DSP-02: filter daftar dinas hanya yang beroperasi di region laporan terpilih
+        // filter daftar dinas hanya yang beroperasi di region laporan terpilih
         List<Map<String, Object>> dinasList = new ArrayList<>();
         try {
             List<Agency> realAgencies;
@@ -978,7 +978,7 @@ public class AdminPusatController {
             model.addAttribute("allSla", slaRecordService.getAllRecords());
         }
 
-        // FR-ESK-03: Overdue tickets needing review
+        // Overdue tickets needing review
         List<SlaRecord> allRecords = slaRecordService.getAllRecords();
         List<Map<String, Object>> overdueForReview = allRecords.stream()
             .filter(s -> s.getCurrentStatus() == SlaRecord.SlaStatus.TERLAMBAT && !s.isOverdueReviewed())
@@ -996,7 +996,7 @@ public class AdminPusatController {
         return "admin/sla";
     }
 
-    // FR-ESK-03: Review overdue SLA ticket
+    // Review overdue SLA ticket
     @PostMapping("/admin/sla/review-overdue")
     public String reviewOverdueSla(
             HttpSession session,
@@ -1071,7 +1071,7 @@ public class AdminPusatController {
         m.put("waktuKejadian", r.getSubmittedAt() != null ? r.getSubmittedAt().format(ControllerHelper.DATETIME_FMT) : "-");
         m.put("deskripsi", r.getDescription() != null ? r.getDescription() : "-");
 
-        // FR-ADM-06: Photo manipulation detection
+        // Photo manipulation detection
         if (r.getPhotoTakenAt() != null && r.getSubmittedAt() != null) {
             m.put("photoTakenAt", r.getPhotoTakenAt().format(ControllerHelper.DATETIME_FMT));
             String warning = detectPhotoManipulation(r);
@@ -1151,7 +1151,7 @@ public class AdminPusatController {
             m.put("isMergeGroup", childCount != null && childCount > 0);
             m.put("mergeCount", childCount != null ? childCount + 1 : 1);
 
-            // FR-ADM-11: Deteksi potensi duplikat (50m + kategori sama)
+            // Deteksi potensi duplikat (50m + kategori sama)
             m.put("hasPotentialDuplicate", hasPotentialDuplicate(r));
 
             result.add(m);
@@ -1165,7 +1165,7 @@ public class AdminPusatController {
         return result;
     }
 
-    // FR-ADM-03: Pagination wrapper
+    // Pagination wrapper
     private Map<String, Object> getQueueList(String regionId, int page, int size) {
         List<Map<String, Object>> all = getQueueList(regionId);
         int totalItems = all.size();
@@ -1185,7 +1185,7 @@ public class AdminPusatController {
     private List<MergeRecord> getActiveMerges() {
         return mergeRecordService.getMerges().stream()
                 .filter(m -> Boolean.TRUE.equals(m.getIsActive()))
-                // FR-ADM-14: cluster hanya tampil selama parent belum melewati tahap validasi awal
+                // cluster hanya tampil selama parent belum melewati tahap validasi awal
                 // Begitu parent di-disposisi (DIDISPOSISI) atau lebih jauh, cluster disembunyikan
                 .filter(m -> {
                     if (m.getParentReport() == null) return false;
@@ -1300,7 +1300,7 @@ public class AdminPusatController {
     }
 
     // ==========================================
-    // PHOTO MANIPULATION DETECTION — FR-ADM-06
+    // PHOTO MANIPULATION DETECTION — 
     // ==========================================
 
     /**

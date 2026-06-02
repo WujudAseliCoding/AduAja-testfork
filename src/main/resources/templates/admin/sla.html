@@ -105,14 +105,14 @@
         </div>
       </div>
 
-      <!-- FR-ESK-03: Overdue items needing mandatory review -->
+      <!-- Overdue items needing mandatory review -->
       <div class="aduaja-panel" th:if="${overdueForReview != null and !#lists.isEmpty(overdueForReview)}">
         <div class="aduaja-card-header">
           <h2 class="aduaja-card-title">
             <i data-lucide="clipboard-list" class="w-5 h-5 text-orange-500"></i>
             Review Wajib — Tiket Melewati SLA
           </h2>
-          <p class="aduaja-card-subtitle">Tiket berikut telah melewati batas SLA dan memerlukan review admin (FR-ESK-03)</p>
+          <p class="aduaja-card-subtitle">Tiket berikut telah melewati batas SLA dan memerlukan review admin</p>
         </div>
         <div class="px-6 pb-6">
           <div class="overflow-x-auto">
@@ -161,7 +161,7 @@
         </div>
       </div>
 
-      <!-- Review Modal for FR-ESK-03 -->
+      <!-- Review Modal for ->
       <div id="reviewModalOverlay" class="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 hidden"
            onclick="if(event.target === this) this.classList.add('hidden')">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6" onclick="event.stopPropagation()">

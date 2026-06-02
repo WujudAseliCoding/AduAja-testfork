@@ -50,11 +50,11 @@ public class DisputeServiceImpl implements DisputeService {
     @Override  // ← POLYMORPHISM: Override dari interface
     @Transactional
     public DisputeRecord createDispute(DisputeDTO dto, String disputantId) {
-        // FR-RSL-10: Validasi alasan sengketa wajib diisi
+        // Validasi alasan sengketa wajib diisi
         if (dto.getReason() == null || dto.getReason().isBlank()) {
             throw new IllegalArgumentException("Alasan sengketa wajib diisi.");
         }
-        // FR-RSL-10: Validasi foto bukti wajib dilampirkan
+        // Validasi foto bukti wajib dilampirkan
         if (dto.getEvidencePhotoUrl() == null || dto.getEvidencePhotoUrl().isBlank()) {
             throw new IllegalArgumentException("Foto bukti sengketa wajib dilampirkan.");
         }
@@ -69,7 +69,7 @@ public class DisputeServiceImpl implements DisputeService {
             throw new IllegalStateException("Sengketa hanya dapat diajukan saat laporan berstatus 'Menunggu Konfirmasi Warga'.");
         }
 
-        // FR-RSL-11: Maksimal 1 sengketa per tiket (cek langsung & via parent untuk merge group)
+        // Maksimal 1 sengketa per tiket (cek langsung & via parent untuk merge group)
         if (disputeRecordRepository.findByReportReportId(dto.getReportId()).isPresent()) {
             throw new IllegalStateException("Sengketa untuk laporan ini sudah pernah diajukan. Maksimal 1 kali pengajuan sengketa per tiket.");
         }
@@ -98,6 +98,7 @@ public class DisputeServiceImpl implements DisputeService {
         dispute.setFiledAt(LocalDateTime.now());
 
         Report.ReportStatus oldStatus = report.getStatus();
+
 
         if (mergeParent != null) {
             // Merge group: sengketa pada child → parent jadi DALAM_EVALUASI_SENGKETA

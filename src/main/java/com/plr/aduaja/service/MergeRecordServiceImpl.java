@@ -67,7 +67,7 @@ public class MergeRecordServiceImpl implements MergeRecordService {
 
         MergeRecord saved = mergeRecordRepository.save(merge);
 
-        // FR-ADM-15: Kirim notifikasi ke reporter child bahwa laporannya digabung
+        // Kirim notifikasi ke reporter child bahwa laporannya digabung
         if (child.getReporter() != null && child.getReporter().getUserId() != null) {
             try {
                 notificationService.createNotification(
@@ -124,7 +124,7 @@ public class MergeRecordServiceImpl implements MergeRecordService {
 
         Report child = record.getChildReport();
 
-        // FR-ADM-18: Kembalikan child ke status sebelum merge
+        // Kembalikan child ke status sebelum merge
         String prevStatus = record.getPreviousChildStatus();
         if (prevStatus != null && !prevStatus.isBlank()) {
             try {

@@ -112,7 +112,7 @@ public class ReportServiceImpl implements ReportService {  // ← POLYMORPHISM
         report.setPhotoBase64(dto.getPhotoBase64());
         report.setSubmittedAt(LocalDateTime.now());
 
-        // FR-ADM-06: Set photo taken at from EXIF if provided
+        // Set photo taken at from EXIF if provided
         if (dto.getPhotoTakenAt() != null && !dto.getPhotoTakenAt().isBlank()) {
             try {
                 report.setPhotoTakenAt(LocalDateTime.parse(dto.getPhotoTakenAt()));
@@ -121,7 +121,7 @@ public class ReportServiceImpl implements ReportService {  // ← POLYMORPHISM
             }
         }
 
-        // FR-ADM-04: Auto-reject if no photo or GPS coordinates
+        // Auto-reject if no photo or GPS coordinates
         boolean hasPhoto = dto.getPhotoBase64() != null && !dto.getPhotoBase64().isBlank();
         boolean hasGps = dto.getLatitude() != null && dto.getLongitude() != null;
         if (!hasPhoto || !hasGps) {
@@ -130,7 +130,7 @@ public class ReportServiceImpl implements ReportService {  // ← POLYMORPHISM
             if (!hasGps) reason.append("tidak menyertakan koordinat GPS. ");
             report.setStatus(Report.ReportStatus.DITOLAK);
             report.setRejectionReason(reason.toString().trim());
-            report.setAdminNotes("Ditolak otomatis oleh sistem (FR-ADM-04)");
+            report.setAdminNotes("Ditolak otomatis oleh sistem");
         } else {
             report.setStatus(Report.ReportStatus.MENUNGGU_VERIFIKASI);
         }

@@ -317,7 +317,7 @@
           </div>
         </div>
 
-        <!-- FR-WRG-17: Notifikasi Laporan Ditolak dengan alasan admin -->
+        <!-- Notifikasi Laporan Ditolak dengan alasan admin -->
         <div
           th:if="${report['status'] == 'Ditolak'}"
           class="bg-red-50 border border-red-200 rounded-xl p-5 mb-6"
@@ -339,7 +339,7 @@
           </div>
         </div>
 
-        <!-- FR-RSL-08: Banner status final = read-only -->
+        <!-- Banner status final = read-only -->
         <div th:if="${isFinalStatus}"
              class="bg-gray-50 border border-gray-200 rounded-xl p-5 mb-6">
           <div class="flex items-center gap-3">
@@ -354,7 +354,7 @@
         </div>
 
         <!-- Tindakan -->
-        <!-- FR-WRG-23: Batalkan laporan (hanya saat MENUNGGU_VERIFIKASI) -->
+        <!-- Batalkan laporan (hanya saat MENUNGGU_VERIFIKASI) -->
         <div th:if="${report['status'] == 'Menunggu Verifikasi'}"
              class="bg-gray-50 border border-gray-200 rounded-xl p-5 mb-6">
           <div class="flex items-center justify-between">
@@ -380,10 +380,10 @@
           </div>
         </div>
 
-        <!-- FR-RSL-04 + FR-RSL-07: Konfirmasi & Sengketa (hanya saat MENUNGGU_VALIDASI atau TERGABUNG dgn pending confirmation, dan belum dikunci) -->
+        <!-- Konfirmasi & Sengketa (hanya saat MENUNGGU_VALIDASI atau TERGABUNG dgn pending confirmation, dan belum dikunci) -->
         <div th:if="${(report['status'] == 'Menunggu Konfirmasi Warga' or (report['status'] == 'Tergabung' and hasPendingConfirmation)) and !confirmationIsLocked and !existingDispute}"
              class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
-          <!-- FR-RSL-04: Countdown batas konfirmasi 3x24 jam kerja -->
+          <!-- Countdown batas konfirmasi 3x24 jam kerja -->
           <div x-show="confirmationDeadline" class="mb-5 bg-amber-50 border border-amber-200 rounded-xl p-4">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
@@ -421,7 +421,7 @@
           </div>
         </div>
         
-        <!-- FR-RSL-11: Sengketa sudah dipakai — hanya bisa konfirmasi, tidak bisa komplain lagi -->
+        <!-- Sengketa sudah dipakai — hanya bisa konfirmasi, tidak bisa komplain lagi -->
         <div th:if="${(report['status'] == 'Menunggu Konfirmasi Warga' or (report['status'] == 'Tergabung' and hasPendingConfirmation)) and existingDispute}"
              class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
           <div class="mb-4 bg-orange-50 border border-orange-200 rounded-xl p-4">
@@ -446,7 +446,7 @@
           </div>
         </div>
 
-        <!-- FR-RSL-07: Informasi jika konfirmasi sudah dikunci (dan belum pernah sengketa) -->
+        <!-- Informasi jika konfirmasi sudah dikunci (dan belum pernah sengketa) -->
         <div th:if="${(report['status'] == 'Menunggu Konfirmasi Warga' or (report['status'] == 'Tergabung' and hasPendingConfirmation)) and confirmationIsLocked and !existingDispute}"
              class="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-6">
           <div class="flex items-center gap-3">
@@ -460,7 +460,7 @@
           </div>
         </div>
 
-        <!-- FR-WRG-17 + FR-WRG-18: Tombol Revisi (hanya saat status Perlu Revisi) -->
+        <!-- Tombol Revisi (hanya saat status Perlu Revisi) -->
         <div th:if="${report['status'] == 'Menunggu Revisi'}"
              class="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-6">
           <div class="flex items-start gap-3">
@@ -469,7 +469,7 @@
             </div>
             <div class="flex-1">
               <h3 class="font-semibold text-amber-900 mb-1">Revisi Diperlukan</h3>
-              <!-- FR-WRG-17: Tampilkan catatan spesifik dari admin secara transparan -->
+              <!-- Tampilkan catatan spesifik dari admin secara transparan -->
               <p class="text-sm text-amber-700 mb-1 font-medium" th:if="${report['rejectionReason'] != null and report['rejectionReason'] != ''}">
                 Catatan Admin: <span th:text="${report['rejectionReason']}"></span>
               </p>
@@ -554,7 +554,7 @@
               <!-- Foto Bukti Sengketa -->
               <div class="border border-gray-200 rounded-lg p-3">
                 <p class="text-sm font-medium text-gray-700 mb-2">
-                <!-- FR-RSL-10: Foto bukti wajib untuk sengketa -->
+                <!-- Foto bukti wajib untuk sengketa -->
                 Foto Bukti <span class="text-red-500">*</span>
                 <span class="text-xs text-gray-400 font-normal">(wajib — ambil dari kamera)</span>
               </p>
@@ -583,7 +583,7 @@
                 >
                   Batal
                 </button>
-                <!-- FR-RSL-10: Validasi foto bukti wajib sebelum submit -->
+                <!-- Validasi foto bukti wajib sebelum submit -->
                 <button
                   type="button"
                   onclick="validateDisputeAndSubmit(event)"
@@ -888,7 +888,7 @@
           </div>
 
           <!-- Bottom Controls -->
-          <!-- FR-WRG-09: Gallery button dihapus - foto hanya dari kamera langsung -->
+          <!-- Gallery button dihapus - foto hanya dari kamera langsung -->
           <div class="flex items-center justify-around px-8 py-6 bg-black/60 backdrop-blur-sm relative z-10">
             <div class="w-12 h-12"></div>
 
@@ -926,7 +926,7 @@
           showRevisionDialog: false,
           reportStatus: [[${report != null ? report['status'] : ''}]],
           slaDeadline: /*[[${report != null ? report['slaDeadlineIso'] : null}]]*/ null,
-          // FR-RSL-04: Countdown konfirmasi 3x24 jam (terpisah dari SLA)
+          // Countdown konfirmasi 3x24 jam (terpisah dari SLA)
           confirmationDeadline: /*[[${confirmationDeadlineIso}]]*/ null,
           confirmationCountdown: { days: 0, hours: 0, minutes: 0, seconds: 0 },
           createdDate: [[${report != null ? report['submittedAt'] : null}]],
@@ -949,13 +949,13 @@
               this.startCountdown();
               this.timer = setInterval(() => this.startCountdown(), 1000);
             }
-            // FR-RSL-04: Mulai countdown konfirmasi jika ada
+            // Mulai countdown konfirmasi jika ada
             if (this.confirmationDeadline) {
               this.tickConfirmation();
               setInterval(() => this.tickConfirmation(), 1000);
             }
           },
-          // FR-RSL-04: Hitung countdown konfirmasi 3x24 jam
+          // Hitung countdown konfirmasi 3x24 jam
           tickConfirmation() {
             const deadline = new Date(this.confirmationDeadline).getTime();
             const now = new Date().getTime();
@@ -1129,7 +1129,7 @@
       // CAMERA ENGINE — AduAja (for revision & dispute)
       // Fitur: Hardware/Digital Zoom, Pinch-to-Zoom, Tap-to-Focus,
       //        Flash, Grid, Switch Kamera, Auto GPS saat jepret
-      // Adapted from create-report.html — FR-WRG-08, FR-WRG-09, FR-WRG-10
+      // Adapted from create-report.html — , , 
       // ============================================================
       let revCamState = {
         stream: null,
@@ -1499,7 +1499,7 @@
         });
       })();
 
-      // FR-RSL-10: Validasi foto bukti wajib sebelum kirim sengketa
+      // Validasi foto bukti wajib sebelum kirim sengketa
       function validateDisputeAndSubmit(event) {
         const evidenceInput = document.getElementById('disputeEvidenceBase64');
         const reasonTextarea = document.querySelector('textarea[name="reason"]');

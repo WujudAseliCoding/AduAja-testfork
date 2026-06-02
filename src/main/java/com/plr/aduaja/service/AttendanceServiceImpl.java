@@ -64,7 +64,7 @@ public class AttendanceServiceImpl implements AttendanceService {
                                                   String deviceInfo,
                                                   double maxRadiusKm,
                                                   double centerLat, double centerLon) {
-        // FR-PTG-08: Validasi GPS dalam radius wilayah kerja (backend enforcement)
+        // Validasi GPS dalam radius wilayah kerja (backend enforcement)
         if (latitude != null && longitude != null) {
             double distKm = GeoUtils.haversineKm(latitude, longitude,
                     new java.math.BigDecimal(centerLat),
@@ -72,9 +72,7 @@ public class AttendanceServiceImpl implements AttendanceService {
             
             // Dapatkan officer untuk mengecek apakah ini akun dummy
             User officer = userRepository.findById(officerId).orElse(null);
-            boolean isDummyAccount = officer != null && 
-                (officer.getEmail().equalsIgnoreCase("ahmad.fauzi@aduaja.go.id") || 
-                 officer.getEmail().equalsIgnoreCase("rizal.harahap@aduaja.go.id"));
+            boolean isDummyAccount = officer != null && officer.getEmail().endsWith("@aduaja.go.id");
             
             if (distKm > maxRadiusKm && !isDummyAccount) {
                 throw new IllegalStateException(

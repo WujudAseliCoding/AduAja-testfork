@@ -28,6 +28,6 @@ public interface SlaRecordService {
     SlaRecord completeSla(String slaId);
     void checkAndUpdateOverdueSla();
 
-    // FR-ESK-03: Mark overdue SLA as reviewed
+    // Mark overdue SLA as reviewed
     SlaRecord markOverdueReviewed(String slaId, String notes);
 }

@@ -23,7 +23,7 @@ public interface AttendanceService {
     OfficerAttendance checkIn(String officerId, BigDecimal latitude, BigDecimal longitude, String deviceInfo);
 
     /**
-     * Check-in dengan validasi geofencing (FR-PTG-08).
+     * Check-in dengan validasi geofencing.
      * Melempar IllegalStateException jika koordinat di luar radius kerja.
      *
      * @param officerId    ID petugas

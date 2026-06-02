@@ -638,7 +638,7 @@ public class AdminDinasController {
             }
         }
 
-        // FR-RSL-12: Report region untuk validasi wilayah petugas
+        // Report region untuk validasi wilayah petugas
         String reportRegionId = null;
         String reportWilayahName = null;
         if (selected != null) {
@@ -728,7 +728,7 @@ public class AdminDinasController {
         log.info("[SENGKETA POST] id={}, keputusan={}, petugasId={}, catatan panjang={}",
             id, keputusan, petugasId, catatan != null ? catatan.length() : 0);
 
-        // FR-RSL-12: Catatan wajib diisi sebelum keputusan
+        // Catatan wajib diisi sebelum keputusan
         if (catatan == null || catatan.isBlank()) {
             redirectAttributes.addFlashAttribute("error", "Catatan resolusi wajib diisi.");
             return "redirect:/admin/dinas/sengketa" + (id != null ? "?id=" + id : "");
@@ -781,7 +781,7 @@ public class AdminDinasController {
                 redirectAttributes.addFlashAttribute("success", "Sengketa diterima. Laporan ditugaskan kembali ke petugas baru.");
                 return "redirect:/admin/dinas/sengketa?reassigned=true";
             } else {
-                // ditolak — Tutup Laporan (FR-RSL-12)
+                // ditolak — Tutup Laporan
                 if (adminId != null) {
                     disputeService.resolveDispute(id, DisputeRecord.ResolutionType.TUTUP_LAPORAN, adminId, catatan);
                 }

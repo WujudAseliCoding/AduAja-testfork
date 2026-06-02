@@ -34,7 +34,7 @@ public class SlaRecord extends BaseEntity {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
-    // FR-ESK-03: Mandatory review workflow for overdue tickets
+    // Mandatory review workflow for overdue tickets
     @Column(name = "overdue_reviewed", nullable = false, columnDefinition = "boolean default false")
     private boolean overdueReviewed = false;
 

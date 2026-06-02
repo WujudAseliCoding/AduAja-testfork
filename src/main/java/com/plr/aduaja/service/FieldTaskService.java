@@ -41,7 +41,7 @@ public interface FieldTaskService {
     FieldTask postponeTask(String taskId, String reason, String requestedById);
 
     /**
-     * Ajukan permintaan penundaan oleh petugas (FR-PTG-27).
+     * Ajukan permintaan penundaan oleh petugas.
      * Status tugas TIDAK langsung berubah — tetap SEDANG_DIKERJAKAN.
      * TaskPostponement dibuat dengan ApprovalStatus.MENUNGGU.
      * Admin harus approve agar status tugas berubah ke TERTUNDA.

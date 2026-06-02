@@ -147,7 +147,7 @@ public class AdminAuthController {
             return "redirect:/petugas/login";
         }
 
-        // FR-AKN-13: Jika status PENDING (login pertama), paksa ganti password
+        // Jika status PENDING (login pertama), paksa ganti password
         if (user.getAccountStatus() == User.AccountStatus.PENDING) {
             session.setAttribute("forceChangePasswordUserId", user.getUserId());
             return "redirect:/petugas/change-password";

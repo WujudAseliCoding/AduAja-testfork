@@ -624,10 +624,10 @@
           </template>
           <template x-if="gpsStatus === 'unavailable' || gpsStatus === 'unsupported'">
             <div>
-              <p class="text-xs text-red-700 mb-2">Lokasi tidak terdeteksi. Check-in tetap dapat dilakukan namun akan ditandai sebagai "GPS Manual".</p>
-              <div class="bg-white/50 p-2 rounded">
-                <p class="text-xs text-red-600 font-medium">Peringatan:</p>
-                <p class="text-xs text-red-600">Check-in tanpa GPS validasi mungkin memerlukan verifikasi admin.</p>
+              <p class="text-xs text-red-700 mb-2">Lokasi GPS tidak terdeteksi. Sistem tidak dapat memvalidasi posisi Anda.</p>
+              <div class="bg-red-100 p-2 rounded">
+                <p class="text-xs text-red-800 font-bold">Akses Ditolak:</p>
+                <p class="text-xs text-red-800">Anda wajib mengaktifkan GPS / Izin Lokasi pada browser untuk dapat melakukan Check-In.</p>
               </div>
             </div>
           </template>
@@ -640,7 +640,7 @@
           </div>
           <div class="flex justify-between">
             <span class="text-sm text-gray-600">Lokasi:</span>
-            <span class="text-sm font-semibold" x-text="gpsValid ? gpsCoords : 'Mendeteksi...'">-</span>
+            <span class="text-sm font-semibold" x-text="gpsStatus === 'valid' ? gpsCoords : (gpsStatus === 'detecting' ? 'Mendeteksi...' : 'Tidak Tersedia')">-</span>
           </div>
           <div class="flex justify-between">
             <span class="text-sm text-gray-600">Browser:</span>
@@ -670,10 +670,12 @@
             <input type="hidden" name="longitude" x-bind:value="gpsValid ? gpsCoords.split(',')[1] : ''" />
             <input type="hidden" name="deviceInfo" x-bind:value="navigator.userAgent" />
             <button
-              class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              class="w-full px-4 py-2 text-white rounded-lg transition-colors font-medium"
+              :class="gpsStatus !== 'valid' ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'"
+              :disabled="gpsStatus !== 'valid'"
               type="submit"
             >
-              Konfirmasi Check-In
+              <span x-text="gpsStatus === 'detecting' ? 'Konfirmasi Check-In' : 'Konfirmasi Check-In'"></span>
             </button>
           </form>
         </div>

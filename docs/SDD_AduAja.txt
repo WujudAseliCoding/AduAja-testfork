@@ -1,0 +1,1694 @@
+﻿SOFTWARE DESIGN DOCUMENT
+	KELOMPOK PLR-Pemuda Legend Revolusioner
+	Adu Aja
+	
+
+
+
+
+
+________________
+
+
+DAFTAR GAMBAR 
+List Of Images
+* GAMBAR 1. Diagram Blok Arsitektur Sistem Adu Aja
+* GA
+* Figure 4. 
+* Figure 5. 
+* Figure 6. 
+* Figure 7. 
+* Figure 8. 
+* Figure 9. 
+* Figure 10. 
+	________________
+
+
+BAB 1
+PENDAHULUAN
+1.1. Tujuan Dokumen
+Dokumen Software Design Document (SDD) ini bertujuan untuk mendeskripsikan secara rinci arsitektur dan desain sistem perangkat lunak untuk Sistem Informasi Pengaduan dan Aspirasi Masyarakat (AduAja). Dokumen ini menjadi pedoman utama bagi tim pengembang (programmer) untuk mentransformasikan spesifikasi kebutuhan perangkat lunak (SRS) menjadi representasi terstruktur dari komponen perangkat lunak, antarmuka, dan struktur basis data yang siap diimplementasikan ke dalam kode program operasional.
+
+
+1.2. Ruang Lingkup Dokumen
+Provide Sistem AduAja dirancang sebagai aplikasi berbasis web (Web Application) yang menjembatani birokrasi pemerintahan daerah dalam menangani pelaporan kerusakan infrastruktur secara digital, transparan, dan terukur.
+Tujuan dan manfaat utama dari proyek ini adalah untuk memangkas birokrasi manual, mencegah penumpukan antrian fisik di kantor instansi, serta mempercepat proses tindak lanjut teknis di lapangan melalui alur kerja yang terotomatisasi. Ruang lingkup desain sistem mencakup:
+* Fokus Fungsional: Sistem menangani laporan kerusakan infrastruktur fisik non-darurat seperti jalan berlubang, fasilitas penerangan jalan (PJU), taman, dan masalah persampahan. Sistem ini secara tegas tidak dirancang untuk menangani laporan darurat yang mengancam nyawa atau tindak kriminalitas.
+* Fitur Kunci: Integrasi Geotagging untuk titik koordinat pasti, filter laporan ganda otomatis melalui Merge Ticket, manajemen batas waktu penanganan (Service Level Agreement / SLA), disposisi tiket digital, navigasi petugas lapangan, serta fitur penyelesaian sengketa laporan.
+* Batasan Pengguna: Otentikasi masyarakat menggunakan metode sederhana (Email/HP/OTP) tanpa mewajibkan verifikasi KTP elektronik (e-KYC) yang rumit demi kemudahan akses.
+
+
+________________
+1.3. Gambaran Umum
+Dokumen SDD ini diorganisasikan ke dalam beberapa bab yang menyusun kerangka desain arsitektur perangkat lunak dari tingkat abstrak hingga tingkat detail:
+* Bab 1 - Pendahuluan: Membahas tujuan dokumen, ruang lingkup produk, daftar referensi, dan glosarium.
+* Bab 2 - Tinjauan Sistem: Menggambarkan fungsionalitas dan konteks operasional sistem secara keseluruhan.
+* Bab 3 - Arsitektur Sistem: Memetakan struktur arsitektur, dekomposisi subsistem (seperti DFD atau kelas berorientasi objek), serta rasionalisasi desain sistem.
+* Bab 4 - Desain Data: Mendefinisikan transformasi informasi ke dalam struktur basis data (DBMS), entitas, dan kamus data.
+* Bab 5 - Desain Komponen: Menguraikan algoritma dan prosedur logika internal untuk masing-masing modul komponen.
+* Bab 6 - Desain Antarmuka Pengguna: Menyajikan desain visual, tata letak layar, dan interaksi aktor di dalam dasbor berbasis web.
+* Bab 7 - Matriks Kebutuhan: Memetakan penelusuran balik (traceability) antara desain arsitektur dengan syarat kebutuhan fungsional di dalam SRS.
+* Bab 8 - Lampiran: Menyediakan dokumentasi referensi tambahan.
+
+
+1.4. Material Referensi
+Desain arsitektur di dalam dokumen ini disusun berdasarkan dan tunduk pada dokumen-dokumen berikut:
+* Software Requirements Specification (SRS) Sistem AduAja V1.0, tertanggal 06 April 2026, yang disusun oleh Tim PLR.
+* Undang-Undang Republik Indonesia Nomor 25 Tahun 2009 tentang Pelayanan Publik (sebagai dasar desain tenggat waktu SLA).
+* IEEE Recommended Practice for Software Design Descriptions (IEEE Std 1016) sebagai pedoman kerangka dan penulisan dokumen desain ini.
+
+
+________________
+1.5. Definisi dan Akronim
+Untuk memastikan interpretasi yang selaras terhadap istilah teknis di dalam desain sistem ini, berikut adalah glosarium yang merujuk pada dokumen SRS:
+* API (Application Programming Interface): Antarmuka yang memungkinkan sistem AduAja berkomunikasi dan bertukar data dengan layanan pihak ketiga seperti peta digital atau gateway notifikasi.
+* Audit Trail: Rekam jejak digital berbasis peladen yang menyimpan log riwayat perubahan status, waktu, dan identitas pengguna secara permanen dan bebas manipulasi.
+* Geofencing: Logika sistem yang menciptakan batas radius virtual secara geografis untuk membatasi aksi tertentu (seperti memvalidasi bahwa petugas benar-benar berada di lokasi perbaikan).
+* Geotagging: Proses otomatis penambahan koordinat garis Lintang (Latitude) dan garis Bujur (Longitude) pada foto pelaporan atau absensi.
+* Merge Ticket: Algoritma sistem untuk mendeteksi, mengumpulkan, dan menggabungkan beberapa laporan duplikat (laporan ganda di lokasi yang sama) menjadi satu penugasan (Parent Ticket) tanpa menghapus pelapor (Child Ticket).
+* SLA (Service Level Agreement): Logika hitung mundur waktu penyelesaian penanganan infrastruktur berdasarkan kategori laporan pada jam kerja operasional.
+* Watermark: Tanda air yang disematkan secara terprogram (server-side) ke dalam foto laporan untuk mencap ID tiket, tanggal, jam, dan koordinat keaslian.
+________________
+
+
+BAB 2
+TINJAUAN SISTEM
+
+
+
+
+Perangkat lunak AduAja dirancang untuk merevolusi proses bisnis pelaporan kerusakan infrastruktur publik dan fasilitas umum yang selama ini berjalan secara konvensional menjadi alur digital yang terintegrasi, transparan, dan terukur. 
+
+
+2.1. Latar Belakang dan Konteks Sistem
+Pada sistem yang sedang berjalan (As-Is), warga yang ingin mengadukan kerusakan infrastruktur harus mendatangi kantor instansi pemerintah dan mengisi formulir fisik. Proses tanpa bukti koordinat pasti ini sering kali berujung pada penumpukan dokumen, redundansi pelaporan ganda, dan kebingungan petugas lapangan dalam mencari titik pasti kerusakan. 
+Sistem usulan (To-Be) mengeliminasi birokrasi fisik tersebut. AduAja diposisikan sebagai Web Application responsif (tanpa memerlukan instalasi native) yang menghubungkan tiga entitas utama dalam satu ekosistem sistem:
+* Warga (Pelapor): Pengguna akhir yang menginisiasi laporan dengan bukti foto dan lokasi (Geotagging) secara real-time dari lokasi kejadian.
+* Administrator (Pusat & Dinas): Pengelola garda terdepan yang bertugas memvalidasi laporan, menyaring duplikasi, dan melakukan disposisi tugas.
+* Petugas Lapangan: Tenaga teknis yang mengeksekusi perbaikan berdasarkan daftar penugasan yang terintegrasi dengan panduan navigasi GPS.
+
+
+2.2. Fungsionalitas Utama Sistem
+Secara fungsional, desain sistem AduAja berfokus pada otomasi birokrasi dan akurasi data melalui fitur-fitur kunci berikut:
+* Geotagging dan Pemetaan (Geofencing): Laporan warga dan absensi/pekerjaan petugas lapangan divalidasi secara otomatis menggunakan API Layanan Lokasi (koordinat GPS) untuk memastikan yurisdiksi wilayah dinas dan akurasi titik perbaikan.
+* Manajemen Merge Ticket: Algoritma sistem yang mampu mendeteksi laporan ganda di radius lokasi dan kategori yang sama, sehingga memungkinkan Administrator untuk menggabungkan laporan-laporan tersebut menjadi satu Parent Ticket guna menghindari penugasan repetitif.
+* Kalkulasi Service Level Agreement (SLA): Penghitungan mundur target waktu pengerjaan operasional yang akan menjeda otomatis di luar jam kerja/hari libur, serta memicu status eskalasi (Terlambat) jika melewati tenggat.
+* Resolusi Sengketa Terintegrasi: Fasilitas yang memberikan otoritas kepada warga untuk menolak hasil perbaikan (komplain) jika bukti foto penyelesaian pekerjaan (Proof of Work) dari petugas dinilai tidak sesuai sasaran.
+
+
+2.3. Desain Arsitektur Lingkungan
+Sistem beroperasi pada arsitektur klien-peladen (client-server) yang modular dan fleksibel. Komunikasi antara antarmuka pengguna dan logika pemrosesan data dilakukan melalui protokol standar web yang dienkripsi secara aman menggunakan HTTPS. Penyimpanan dan pengelolaan informasi ditangani oleh Sistem Manajemen Basis Data Relasional (RDBMS) standar industri untuk memastikan persistensi dan integritas data. Arsitektur ini sengaja dirancang agar tidak terikat pada satu teknologi spesifik (technology-agnostic), sehingga sistem tetap memiliki skalabilitas tinggi dan kemudahan pemeliharaan jika terjadi migrasi atau pergantian kerangka kerja (framework) di masa mendatang. 
+________________
+
+
+BAB 3
+ARSITEKTUR SISTEM
+
+
+
+
+3.1. Desain Arsitektur
+Sistem Informasi Pengaduan dan Aspirasi Masyarakat (AduAja) dirancang menggunakan pola arsitektur berbasis Client-Server (Tiga Lapisan / 3-Tier), di mana logika presentasi, pemrosesan bisnis, dan penyimpanan data dipisahkan secara tegas untuk memastikan skalabilitas, keamanan, dan kemudahan pemeliharaan (maintainability).
+Arsitektur ini terdiri dari empat blok komponen utama:
+3.1.1 Lapisan Antarmuka Pengguna / Front-End (Presentation Layer)
+Lapisan ini merupakan titik kontak langsung antara sistem dengan para aktor yang terlibat. Karena AduAja berjalan sebagai Web Application responsif (sesuai spesifikasi EIR-UI-01), antarmuka dibagi menjadi dua platform utama berdasarkan konteks penggunaannya:
+* Web Mobile Warga & Web Mobile Petugas: Dioptimalkan untuk perangkat bergerak (ponsel pintar). Antarmuka Warga fokus pada kemudahan akses kamera dan lokasi GPS (Geotagging) untuk membuat laporan. Antarmuka Petugas Lapangan dirancang dengan kontras visual tinggi untuk navigasi lapangan, pelaporan progres operasional, dan unggah foto bukti eksekusi.
+* Dasbor Administrator: Dioptimalkan untuk layar besar (desktop). Digunakan oleh Admin Pusat dan Admin Dinas untuk memantau antrean tabel laporan yang kompleks, memvalidasi bukti, melakukan Merge Ticket, dan memantau status SLA (Service Level Agreement).
+3.1.2 Lapisan Sistem Backend / Pemrosesan Inti (Application Layer)
+Ini adalah "otak" dari sistem AduAja. Seluruh komunikasi dari Front-End diterima oleh API Gateway / Router yang bertugas sebagai pintu gerbang tunggal (single point of entry). API Gateway mengatur perutean (routing) lalu lintas data ke modul-modul bisnis spesifik:
+* Modul 1.0 Manajemen Akun & Auth: Menangani pendaftaran warga, validasi OTP, masuk tunggal (SSO), serta sinkronisasi manajemen hak akses (Role-Based Access Control) antara Admin dan Petugas.
+* Modul 2.0 Pengelolaan Laporan & Geotagging: Memproses pengiriman formulir laporan warga, mengeksekusi validasi format media, dan memetakan koordinat spasial awal untuk memastikan laporan berada di yurisdiksi yang tepat.
+* Modul 3.0 Disposisi & Penugasan: Mengeksekusi logika bisnis untuk penugasan laporan, perhitungan SLA, fitur Jeda Waktu, dan algoritma Merge Ticket (penggabungan laporan ganda).
+* Modul 4.0 Eksekusi & Sengketa: Mengelola aliran pembaruan tugas dari lapangan, validasi Geofencing radius petugas, hingga penanganan komplain (sengketa) dari warga pelapor.
+* Sistem Audit Log: Berdiri secara independen untuk menangkap rekam jejak (immutable log) dari setiap aksi krusial yang terjadi di seluruh modul (seperti disposisi atau revisi), guna menjamin transparansi hukum sesuai kebutuhan non-fungsional audit (NFR-AUD-01).
+3.1.3 Lapisan Penyimpanan Data (Data Layer)
+Menggunakan Sistem Manajemen Basis Data Relasional (RDBMS) yang menyimpan seluruh entitas persisten. Terdiri dari tiga repositori utama yang secara logis terisolasi namun saling berelasi (foreign key):
+* D1 - Data Akun: Menyimpan kredensial otentikasi, profil warga, dan wilayah kerja admin/petugas.
+* D2 - Data Laporan: Menyimpan detail informasi kerusakan, foto, titik koordinat, dan status rekaman tiket.
+* D3 - Data Penugasan: Menyimpan catatan penugasan petugas operasional lapangan beserta logistik pekerjaannya.
+3.1.4 Lapisan Layanan Eksternal (External APIs)
+Sistem AduAja tidak berjalan secara terisolasi. Arsitektur ini mendelegasikan beberapa fungsionalitas kompleks ke layanan pihak ketiga via antarmuka komunikasi data (JSON/HTTPS):
+* API Lokasi (Peta/Geocoding): Digunakan untuk translasi dari titik lintang/bujur menjadi alamat teks yang dapat dibaca manusia, serta render peta interaktif.
+* API Autentikasi (OTP/OAuth): Digunakan untuk proses verifikasi keamanan dan fasilitas login tanpa kata sandi (SSO).
+* API Notifikasi (SMTP/SMS): Layanan dorongan (push) untuk memberitahukan perubahan status laporan langsung ke gawai pengguna, mencegah warga harus sering memuat ulang halaman secara manual.
+  
+
+
+
+GAMBAR 1. Diagram Blok Arsitektur Sistem Adu Aja
+________________
+
+
+
+
+3.2. Deskripsi Dekomposisi
+Pendekatan fungsional digunakan untuk memodelkan dekomposisi sistem ini, bersandar pada Data Flow Diagram (DFD) yang telah dirancang pada dokumen SRS.
+* Diagram Konteks (DFD Level 0): Memetakan interaksi Sistem AduAja secara terpusat dengan empat entitas internal (Warga, Administrator Pusat, Administrator Dinas, Petugas Lapangan) dan entitas eksternal seperti API Layanan Lokasi (Maps).
+* Dekomposisi Terstruktur (DFD Level 1): Sistem dipecah menjadi empat proses utama:
+   * Proses 1.0 (Manajemen Akun Dan Autentikasi): Memvalidasi sesi login dan mengelola profil atau data akun.
+   * Proses 2.0 (Pengelolaan Laporan Warga): Menerima input laporan, memanggil Layanan Lokasi untuk verifikasi koordinat, dan menyimpan data aduan ke dalam Data Laporan.
+   * Proses 3.0 (Disposisi Dan Penugasan): Mengambil data dari Data Laporan, menjalankan algoritma Merge Ticket, dan meneruskan instruksi ke entitas Data Penugasan.
+   * Proses 4.0 (Eksekusi Dan Sengketa): Memperbarui status penanganan oleh petugas, memproses masukan sengketa dari warga, dan mencatat penyelesaian akhir (SLA terpenuhi/terlambat).
+
+
+
+
+3.3. Rasionalisasi Desain
+Pemilihan arsitektur sistem dan teknologi ini diambil berdasarkan pertimbangan spesifikasi kebutuhan fungsional dan non-fungsional (NFR) dari proyek AduAja:
+* Web Application vs Native App: Sistem didesain eksklusif sebagai aplikasi web responsif tanpa perlu instalasi aplikasi native (Android/iOS). Keputusan ini diambil agar masyarakat umum dapat mengakses platform ini dengan cepat melalui peramban (browser) standar, sehingga memangkas hambatan aksesibilitas.
+* Pemisahan Modul Front-End dan Back-End: Arsitektur ini dipilih untuk memenuhi standar pemeliharaan (Maintainability). Pemisahan ini memungkinkan tim pengembang (PLR) untuk melakukan debugging atau pembaruan fitur (seperti antarmuka pengguna) tanpa mengganggu logika inti peladen atau menghentikan keseluruhan sistem.
+* Penggunaan API Pihak Ketiga (Layanan Lokasi): Daripada membangun sistem pemetaan sendiri, AduAja menggunakan API Layanan Lokasi eksternal. Hal ini sangat krusial untuk memastikan keakuratan proses Geotagging dan mencegah pelaporan fiktif (validasi yurisdiksi dinas) tanpa membebani penyimpanan basis data secara berlebihan.
+* Pemrosesan Asinkron untuk SLA: Perhitungan target waktu penyelesaian (Service Level Agreement) dilakukan di sisi peladen (server-side) agar integritas waktu penanganan terpusat dan tidak dapat dimanipulasi oleh memori lokal pada perangkat pengguna.
+________________
+BAB 4
+DESAIN DATA
+
+
+
+
+4.1. Deskripsi Data
+Bagian ini menjelaskan transformasi domain informasi sistem AduAja ke dalam struktur data teknis. Desain data mencakup manajemen data di dalam memori aplikasi untuk pemrosesan logika serta penyimpanan data permanen dalam sistem pangkalan data relasional.
+
+
+4.2. Struktur Data dan Algoritma Internal
+Sub-bab ini merinci Tipe Data Abstrak (ADT) dan logika algoritma yang diimplementasikan pada level kode program untuk mendukung efisiensi operasional sistem:
+4.2.1. Struktur Data (Internal Data Structures)
+   1. Antrean Berprioritas (Priority Queue)
+Penerapan: Manajemen antrean tiket laporan masuk.
+Logika Desain: Sesuai dengan aturan bisnis mengenai penanganan laporan, sistem menggunakan struktur data antrean yang mendukung bobot prioritas. Laporan tidak hanya diproses berdasarkan urutan waktu masuk (FIFO), tetapi juga dievaluasi berdasarkan tingkat urgensi dan batas waktu penyelesaian. Elemen dengan nilai urgensi tinggi akan diposisikan di baris terdepan untuk memastikan respons sistem yang cepat terhadap laporan kritis.
+
+
+   2. Senarai Dinamis (Dynamic Array / List)
+Penerapan: Koleksi lampiran dokumen dan bukti visual.
+Logika Desain: Digunakan untuk menampung data yang jumlah elemennya tidak dapat ditentukan secara statis. Struktur ini dipilih karena memberikan fleksibilitas dalam penambahan data di akhir senarai serta efisiensi akses elemen melalui indeks dengan kompleksitas waktu konstan $O(1)$ saat proses perenderan data di antarmuka pengguna.
+
+
+   3. Tabel Hash (Hash Table / Associative Array)
+Penerapan: Manajemen sesi aktif dan pencarian entitas unik.
+Logika Desain: Untuk menjamin performa pencarian yang sangat cepat, data dipetakan menggunakan fungsi hashing dengan kunci unik (seperti ID pengguna atau NIK). Struktur ini memungkinkan proses verifikasi identitas dan pengambilan profil dilakukan secara instan tanpa perlu melakukan penelusuran sekuensial ke seluruh kumpulan data.
+
+
+   4. Tumpukan (Stack)
+Penerapan: Rekam jejak kronologis dan riwayat status.
+Logika Desain: Mengikuti prinsip Last-In-First-Out (LIFO), di mana entri data terbaru diposisikan di puncak struktur. Hal ini mempermudah sistem dalam mengambil status terkini dari sebuah laporan tanpa memodifikasi catatan historis yang sudah ada, sekaligus mendukung audit log yang bersifat hanya-tambah (append-only).
+
+
+   5. Himpunan Unik (Unique Set)
+Penerapan: Pengelompokan identitas laporan pada fitur penggabungan (merge).
+Logika Desain: Digunakan untuk memastikan integritas data saat beberapa entitas digabungkan menjadi satu kesatuan. Karakteristik struktur data ini yang secara matematis menolak elemen duplikat menjamin bahwa tidak akan terjadi redundansi identitas entitas dalam satu grup penggabungan, meskipun terjadi pengulangan aksi dari sisi pengguna.
+
+
+4.2.2 Algoritma Internal (Internal Algorithms)
+Selain struktur data, sistem memanfaatkan beberapa pendekatan algoritma dasar di level aplikasi untuk memanipulasi data berskala kecil (data yang sudah difilter oleh pangkalan data):
+   1. Algoritma Pengurutan (Sorting Algorithm)
+   * Penerapan: Penyesuaian akhir daftar antrean laporan pada dasbor sebelum dirender ke antarmuka pengguna.
+   * Logika: Meskipun pengurutan utama dilakukan di pangkalan data, algoritma pengurutan internal (seperti variasi Merge Sort bawaan pustaka bahasa pemrograman) digunakan untuk menyortir ulang antrean di memori berdasarkan kalkulasi sisa waktu SLA (Service Level Agreement) yang berubah secara dinamis.
+
+
+
+
+
+
+
+
+   2. Algoritma Pencarian Linear / Hash (Searching)
+   * Penerapan: Pencarian data pada cache lokal atau sesi aktif.
+   * Logika: Untuk data yang sering diakses dan sudah berada di memori (seperti validasi token), sistem menggunakan pencarian berbasis kunci (hash-based search) alih-alih melakukan query berulang ke peladen pangkalan data.
+
+
+4[a].3. Desain Basis Data (Database / Persistent Data Design)
+Sistem AduAja memiliki arsitektur basis data relasional (RDBMS) dengan tingkat kompleksitas tinggi yang terdiri dari 25 entitas tabel. Seluruh entitas telah dinormalisasi hingga bentuk normal ketiga (3NF) untuk menghilangkan redundansi data. Untuk menjaga keterbacaan dokumen, desain basis data dibagi menjadi dua tingkat abstraksi: Gambaran Konseptual (Tingkat Tinggi) dan Diagram Modular (Tingkat Detail).
+
+
+4.3.1. Conceptual Entity-Relationship Diagram (Overview)
+Diagram konseptual ini memberikan gambaran besar mengenai interaksi antar-entitas inti di dalam sistem AduAja tanpa menyertakan atribut detail.
+
+
+  
+
+Figure 2. 
+
+
+
+
+GAMBAR 2. Entity Relationship Diagram (ERD) Sistem Adu Aja 
+Penjelasan Alur Konseptual:
+   * Aktor utama (USERS) memicu sistem dengan membuat keluhan (REPORTS).
+   * Setiap keluhan diklasifikasikan berdasarkan wilayah administratif (REGIONS) yang terintegrasi dengan pemetaan spasial.
+   * Berdasarkan wilayah tersebut, sistem meneruskan laporan kepada instansi terkait (AGENCIES).
+   * Laporan yang valid akan menghasilkan instruksi kerja lapangan (FIELD_TASKS) yang dieksekusi oleh petugas.
+   * Jika pelapor tidak puas dengan hasil kerja, sistem memfasilitasi pembuatan tiket komplain (DISPUTE_RECORDS).
+4.3.2. Modular Entity-Relationship Diagram (Detail Relasi)
+Untuk memetakan relasi antar-tabel secara spesifik, ERD dipecah menjadi 6 modul fungsional sesuai dengan batasan domain sistem (Domain-Driven Design). Pada diagram modular ini, relasi Foreign Key yang merujuk ke luar modul tidak ditarik garisnya (disimbolkan dengan teks referensi) agar tidak terjadi penumpukan garis (spaghetti diagram). Rincian tipe data untuk setiap atribut tersedia pada Bab 4.4 (Kamus Data).
+
+
+A. Modul Autentikasi dan Pengguna 
+Modul ini mengelola data fundamental pengguna, profil kependudukan, serta keamanan sesi masuk.
+
+
+
+
+  GAMBAR 3. Skema Basis Data: Manajemen Pengguna dan Keamanan 
+B. Modul Pelaporan Warga
+Modul ini menjadi pusat penyimpanan data keluhan, bukti foto koordinat geolokasi, dan riwayat revisi dari warga.
+  GAMBAR 4. Skema Basis Data: Pelaporan dan Kategorisasi 
+
+
+C. Modul Validasi dan Wilayah Admin 
+Modul ini mencatat data hierarki kewilayahan beserta log keputusan validasi dan penggabungan tiket (merge records) oleh Admin Pusat.  
+GAMBAR 5. Skema Basis Data: Validasi dan Konsolidasi Laporan 
+D. Modul Disposisi dan Tracking SLA 
+Modul ini berfokus pada penerusan tiket ke dinas terkait dan pemantauan Service Level Agreement (SLA) beserta riwayat penundaannya.
+  GAMBAR 6. Skema Basis Data: Disposisi Instansi dan Pemantauan SLA 
+E. Modul Eksekusi dan Tugas Lapangan 
+Modul ini merekam bukti perbaikan di lapangan oleh petugas, termasuk data presensi kehadiran dan permintaan penundaan kerja.
+GAMBAR 7. Skema Basis Data: Sengketa, Notifikasi, dan Audit Trail   
+F. Modul Konfirmasi dan Sengketa 
+Modul ini mengelola siklus akhir dari laporan, mulai dari persetujuan warga, komplain/sengketa, pengiriman notifikasi, hingga pencatatan Audit Log sistem yang bersifat permanen.
+
+
+________________
+  Figure 4.
+4[b].4. Kamus Data (Data Dictionary)
+
+
+4.4.1. Tabel users
+Tabel ini merupakan tabel utama dalam sistem autentikasi. Fungsinya adalah untuk menyimpan kredensial login dasar dan menentukan hak akses (role) setiap individu. Penggunaan user_id dengan tipe UUID memberikan keamanan lebih dibandingkan ID berurutan biasa karena lebih sulit ditebak.
+
+
+Nama Kolom
+	Tipe Data
+	Keterangan
+	user_id
+	VARCHAR(36)
+	Primary Key, UUID
+	full_name
+	VARCHAR(100)
+	Nama lengkap pengguna
+	email
+	VARCHAR(150)
+	Unique, tidak boleh null
+	phone_number
+	VARCHAR(20)
+	Unique
+	password_hash
+	VARCHAR(255)
+	Hash bcrypt, tidak boleh null
+	role
+	ENUM('warga', 'admin_pusat', 'admin_dinas', 'petugas')
+	Peran pengguna dalam sistem
+	account_status
+	ENUM('pending', 'active', 'suspended')
+	Status aktif akun
+	created_at
+	TIMESTAMP
+	Waktu registrasi
+	updated_at
+	TIMESTAMP
+	Waktu pembaruan terakhir
+	 
+4.4.2. Tabel user_profiles
+Tabel ini memisahkan detail profil dari data akun utama guna memenuhi prinsip Normalisasi Basis Data (3NF). Dengan pemisahan ini, sistem dapat menyimpan informasi identitas seperti NIK tanpa mengganggu kinerja tabel login utama. Kolom work_region_id secara spesifik mengaitkan admin atau petugas dengan yurisdiksi wilayah mereka.
+
+
+Nama Kolom
+	Tipe Data
+	Keterangan
+	profile_id
+	VARCHAR(36)
+	Primary Key, UUID
+	user_id
+	VARCHAR(36)
+	Foreign Key → users.user_id
+	nik
+	VARCHAR(16)
+	Nomor Induk Kependudukan, Unique
+	profile_photo_url
+	VARCHAR(255)
+	URL foto profil, opsional
+	work_region_id
+	VARCHAR(36)
+	Foreign Key → regions.region_id
+	 
+4.4.3. Tabel otp_verifications
+Tabel ini dirancang untuk menangani mekanisme keamanan saat pendaftaran, login, atau lupa kata sandi. Dengan mencatat status is_used dan expirese_at, sistem dapat memastikan bahwa setiap kode OTP hanya digunakan satu kali dan memiliki masa berlaku yang terbatas untuk mencegah penyalahgunaan.
+
+
+Nama Kolom
+	Tipe Data
+	Keterangan
+	otp_id
+	VARCHAR(36)
+	Primary Key, UUID
+	user_id
+	VARCHAR(36)
+	Foreign Key → users.user_id
+	otp_code
+	VARCHAR(10)
+	Kode OTP terenkripsi
+	otp_type
+	ENUM('registration', 'login', 'password_reset')
+	Jenis keperluan OTP
+	expires_at
+	TIMESTAMP
+	Waktu kedaluwarsa OTP
+	is_used
+	BOOLEAN
+	Default FALSE
+	created_at
+	TIMESTAMP
+	Waktu OTP diterbitkan
+	 
+4.4.4 Tabel login_attempts
+Tabel ini berfungsi sebagai sistem pemantauan untuk mencegah serangan brute force sesuai dengan NFR-SEC-03. Dengan mencatat setiap percobaan masuk beserta alamat IP-nya, sistem dapat mendeteksi pola mencurigakan dan melakukan pemblokiran otomatis jika batas kegagalan (5 kali) telah terlampaui.
+
+
+Nama Kolom
+	Tipe Data
+	Keterangan
+	attempt_id
+	VARCHAR(36)
+	Primary Key, UUID
+	user_id
+	VARCHAR(36)
+	Foreign Key → users.user_id (nullable)
+	attempt_email
+	VARCHAR(150)
+	Email yang digunakan saat percobaan
+	ip_address
+	VARCHAR(45)
+	Alamat IP perangkat
+	is_success
+	BOOLEAN
+	Berhasil atau gagal
+	attempted_at
+	TIMESTAMP
+	Waktu percobaan
+	 
+
+
+
+
+
+
+4.4.5 Tabel active_sessions
+Tabel ini digunakan untuk mengelola sesi pengguna yang sedang aktif dan mendukung fitur session timeout (NFR-SEC-04 & 05). Melalui tabel ini, sistem dapat melacak perangkat mana saja yang sedang mengakses akun tertentu dan memberikan kemampuan untuk memutus sesi secara paksa jika diperlukan (misalnya saat terjadi perubahan kata sandi).
+
+
+Nama Kolom
+	Tipe Data
+	Keterangan
+	session_id
+	VARCHAR(36)
+	Primary Key, UUID
+	user_id
+	VARCHAR(36)
+	Foreign Key → users.user_id
+	device_info
+	VARCHAR(255)
+	Informasi perangkat/browser
+	ip_address
+	VARCHAR(45)
+	Alamat IP sesi aktif
+	last_activity
+	TIMESTAMP
+	Waktu aktivitas terakhir
+	expires_at
+	TIMESTAMP
+	Waktu sesi berakhir otomatis
+	is_active
+	BOOLEAN
+	Status sesi (TRUE = aktif)
+	 
+
+
+[c]
+4.4.6. Tabel reports
+Tabel ini merupakan pusat data dari seluruh sistem AduAja. Setiap laporan yang masuk akan tercatat di sini dengan identitas unik berupa ticket_number. Tabel ini dirancang untuk mendukung fitur pencatatan lokasi yang presisi melalui koordinat GPS serta mendukung fitur Merge Ticket (penggabungan laporan) melalui kolom parent_report_id yang merujuk kembali ke dirinya sendiri (self-referencing).
+
+
+Nama Kolom
+	Tipe Data
+	Keterangan
+	report_id
+	VARCHAR(36)
+	Primary Key, UUID
+	ticket_number
+	VARCHAR(20)
+	Unique, auto-generated (cth: ADJ-2026-00123)
+	reporter_id
+	VARCHAR(36)
+	Foreign Key → users.user_id
+	category_id
+	VARCHAR(36)
+	Foreign Key → report_categories.category_id
+	region_id
+	VARCHAR(36)
+	Foreign Key → regions.region_id
+	description
+	TEXT
+	Deskripsi narasi laporan
+	location_hint
+	VARCHAR(255)
+	Patokan lokasi tambahan (teks bebas)
+	latitude
+	DECIMAL(10,8)
+	Koordinat lintang saat foto diambil
+	longitude
+	DECIMAL(11,8)
+	Koordinat bujur saat foto diambil
+	photo_url
+	VARCHAR(255)
+	URL foto bukti awal dari server
+	photo_taken_at
+	TIMESTAMP
+	Waktu metadata kamera saat foto diambil
+	status
+	ENUM(...)
+	Status terkini laporan (12 tahapan status)
+	parent_report_id
+	VARCHAR(36)
+	Self-referencing FK → reports.report_id
+	submitted_at
+	TIMESTAMP
+	Waktu pengiriman laporan
+	updated_at
+	TIMESTAMP
+	Waktu pembaruan status terakhir
+	
+
+ 4.4.7. Tabel report_categories
+Pemisahan tabel kategori dilakukan untuk memenuhi kaidah 3NF, di mana informasi mengenai jenis laporan dan batas waktu pengerjaan (Service Level Agreement) berdiri sendiri. Dengan struktur ini, admin dapat mengubah durasi jam kerja pengerjaan (SLA) untuk satu kategori tanpa harus memperbarui setiap baris data laporan yang sudah ada.
+
+
+Nama Kolom
+	Tipe Data
+	Keterangan
+	category_id
+	VARCHAR(36)
+	Primary Key, UUID
+	category_name
+	VARCHAR(100)
+	Nama kategori (cth: "Jalan Rusak")
+	sla_duration_hours
+	INT
+	Batas waktu SLA dalam jam kerja
+	description
+	TEXT
+	Penjelasan kategori, opsional
+	 
+4.4.8. Tabel report_revisions
+Tabel ini berfungsi untuk mencatat riwayat ketika laporan diminta untuk diperbaiki oleh admin atau diperbarui oleh warga. Dibandingkan menimpa (overwrite) data pada tabel utama, penggunaan tabel revisi memungkinkan sistem untuk menyimpan bukti lama dan bukti baru secara bersamaan, sehingga transparansi data tetap terjaga.
+
+
+Nama Kolom
+	Tipe Data
+	Keterangan
+	revision_id
+	VARCHAR(36)
+	Primary Key, UUID
+	report_id
+	VARCHAR(36)
+	Foreign Key → reports.report_id
+	revised_photo_url
+	VARCHAR(255)
+	URL foto baru hasil revisi
+	revised_description
+	TEXT
+	Deskripsi yang diperbarui
+	revised_latitude
+	DECIMAL(10,8)
+	Koordinat diperbarui, opsional
+	revised_longitude
+	DECIMAL(11,8)
+	Koordinat diperbarui, opsional
+	submitted_at
+	TIMESTAMP
+	Waktu pengiriman revisi
+	 
+4.4.9. Table[d][e][f] regions (Data Wilayah)
+Tabel ini bertindak sebagai tulang punggung untuk sistem Geofencing dan penentuan wilayah tugas (routing). Alih-alih membuat tiga tabel terpisah untuk Kota, Kecamatan, dan Kelurahan yang akan memperumit query, sistem menggunakan pendekatan Adjacency List Model (tabel yang merujuk pada dirinya sendiri). Desain ini memastikan hierarki wilayah tersimpan secara dinamis dalam satu entitas (3NF) tanpa adanya redundansi data, sekaligus mengakomodasi pemetaan poligon spasial. 
+
+
+Nama Kolom
+	Tipe Data
+	Keterangan Teknis & Alasan Bisnis
+	region_id
+	VARCHAR
+	Primary Key. Pengidentifikasi unik untuk setiap area administratif (menggunakan format UUID).
+	region_name
+	VARCHAR
+	Nama presisi dari wilayah tersebut (cth: "Kecamatan Medan Baru").
+	region_level
+	ENUM
+	Restriksi (constraint) tingkatan administratif (kota, kecamatan, kelurahan). Mencegah anomali data akibat kesalahan ketik (typo) dan mempermudah filter pada dasbor dasbor visualisasi.
+	parent_region_id
+	VARCHAR
+	Self-Referencing Foreign Key. Merujuk kembali ke region_id di tabel yang sama. Membentuk struktur pohon (Tree). Contoh: Kelurahan Babura akan memiliki parent_id yang merujuk pada Kecamatan Medan Baru.
+	boundary_geojson
+	GEOMETRY
+	Menyimpan titik-titik kordinat yang membentuk jaring poligon (garis batas wilayah). Digunakan oleh algoritma basis data (Point-in-Polygon) untuk mendeteksi secara otomatis apakah koordinat GPS laporan warga jatuh di dalam wilayah administrasi tertentu.
+	
+
+4.4.10. Tabel validation_decisions (Keputusan Validasi Admin)
+Tabel ini memisahkan proses operasional admin dari data mentah laporan warga. Pendekatan ini secara ketat mempertahankan bentuk normalisasi ketiga (3NF) sekaligus bertindak sebagai Audit Trail (rekam jejak). Karena satu laporan bisa mengalami beberapa kali siklus validasi (misalnya: dikembalikan untuk revisi, lalu divalidasi ulang), tabel independen ini mencegah hilangnya data historis akibat penimpaan data (overwriting) pada tabel utama. 
+
+
+
+
+
+
+
+
+
+
+Nama Kolom
+	Tipe Data
+	Keterangan Teknis & Alasan Bisnis
+	decision_id
+	VARCHAR
+	Primary Key. Pengidentifikasi unik untuk setiap rekam aktivitas keputusan yang diambil oleh admin.
+	report_id
+	VARCHAR
+	Foreign Key ke tabel reports. Menghubungkan keputusan ini dengan laporan spesifik yang sedang dievaluasi.
+	admin_id
+	VARCHAR
+	Foreign Key ke tabel users. Mencatat secara pasti identitas Admin Pusat yang mengeksekusi keputusan tersebut. Sangat krusial untuk akuntabilitas dan KPI (Key Performance Indicator) petugas.
+	decision
+	ENUM
+	Restriksi hasil keputusan (diterima, ditolak, direvisi, dalam_peninjauan). Penggunaan ENUM menstandarisasi state aplikasi dan mencegah bug akibat perbedaan penulisan (typo) di level kode program.
+	rejection_reason
+	TEXT
+	Catatan teknis yang wajib diisi (Mandatory) oleh sistem pada level backend apabila decision bernilai ditolak atau direvisi. Berfungsi sebagai balasan otomatis (feedback) kepada warga.
+	decided_at
+	TIMESTAMP
+	Waktu presisi dari peladen saat tombol keputusan ditekan. Membantu sistem menghitung kecepatan respons admin (Response Time).
+	
+
+________________
+
+
+4.4.11. Tabel  merge_records (Catatan Penggabungan Laporan)
+Tabel ini dirancang khusus untuk memfasilitasi fitur Merge Ticket. Ketimbang memodifikasi langsung tabel utama reports yang berisiko merusak integritas data awal, sistem memisahkan riwayat penggabungan ke dalam tabel independen. Hal ini menjaga prinsip 3NF dan memastikan setiap aksi penggabungan dapat diaudit atau bahkan dibatalkan (undo) tanpa kehilangan jejak data historis. 
+Nama Kolom
+	Tipe Data
+	Keterangan Teknis & Alasan Bisnis
+	merge_id
+	VARCHAR
+	Primary Key. Pengidentifikasi unik untuk setiap aktivitas penggabungan tiket.
+	parent_report_id
+	VARCHAR
+	Foreign Key ke tabel reports. Mewakili identitas "Laporan Utama" yang akan dipertahankan dan menjadi pusat penyelesaian masalah.
+	child_report_id
+	VARCHAR
+	Foreign Key ke tabel reports. Mewakili identitas "Laporan Duplikat" yang akan dilebur dan mengikuti status dari Laporan Utama.
+	merged_by
+	VARCHAR
+	Foreign Key ke tabel users. Mencatat ID Admin Pusat yang mengeksekusi aksi penggabungan untuk keperluan pelacakan audit (audit trail).
+	merge_reason
+	TEXT
+	Justifikasi tertulis dari Admin mengenai mengapa kedua laporan tersebut dikategorikan sebagai masalah yang sama di lokasi yang sama.
+	is_active
+	BOOLEAN
+	Penanda status relasi. Jika Admin melakukan kesalahan penggabungan, sistem hanya mengubah nilai ini menjadi FALSE (Soft Delete) untuk memisahkan kembali tiket, tanpa perlu menghapus rekaman data secara permanen.
+	merged_at
+	TIMESTAMP
+	Stempel waktu (timestamp) dari peladen yang mencatat kapan proses penggabungan dieksekusi secara presisi.
+	________________
+
+
+4.4.12. Tabel Agencies (Master Data Dinas/Instansi Pemerintah)
+Menyimpan daftar resmi instansi eksekutor. Tabel ini krusial agar sistem dapat memetakan ke mana sebuah laporan harus dilempar berdasarkan wilayah kejadian.
+Nama Kolom
+	Tipe Data
+	Keterangan
+	agency_id
+	VARCHAR
+	Primary Key. Menggunakan format UUID untuk menjamin keunikan identitas instansi di seluruh basis data.
+	agency_name
+	VARCHAR
+	Menyimpan nama entitas instansi (contoh: "Dinas PU Kota Medan"). Data ini akan ditampilkan pada drop-down menu saat Admin Pusat melakukan disposisi.
+	region_id
+	VARCHAR
+	Foreign Key ke regions.region_id. Tujuan: Agar sistem bisa memfilter dan hanya menampilkan dinas yang memiliki yurisdiksi di wilayah tempat laporan warga tersebut dibuat.
+	contact_email
+	VARCHAR
+	Alamat surel resmi instansi. Tujuan: Sebagai target pengiriman notifikasi otomatis oleh sistem ketika ada disposisi tugas baru yang masuk ke dinas tersebut.
+	is_active
+	BOOLEAN
+	Penanda status operasional (TRUE/FALSE). Tujuan: Jika dinas dilebur atau dinonaktifkan (FALSE), namanya akan disembunyikan dari antarmuka Admin Pusat agar tidak ada laporan yang tersasar ke dinas mati.
+	
+
+4.4.13.  Tabel Dispositions (Log Transaksi Disposisi / Pelimpahan Tugas)
+Merekam jejak audit (audit trail) pemindahan tanggung jawab laporan dari Admin Pusat ke instansi tujuan. Ini adalah bukti digital bahwa laporan sudah diproses ke tahap operasional.
+Nama Kolom
+	Tipe Data
+	Keterangan 
+	disposition_id
+	VARCHAR
+	Primary Key. Mengidentifikasi setiap aktivitas pelimpahan tugas secara unik menggunakan UUID.
+	report_id
+	VARCHAR
+	Foreign Key ke reports.report_id. Menandakan tiket laporan warga mana yang sedang diteruskan.
+	dispatched_by
+	VARCHAR
+	Foreign Key ke users.user_id. Merekam identitas/ID Admin Pusat yang melakukan aksi disposisi. Tujuan: Untuk akuntabilitas jika terjadi kesalahan pelimpahan sasaran dinas.
+	target_agency_id
+	VARCHAR
+	Foreign Key ke agencies.agency_id. Menunjukkan instansi mana yang menerima pelimpahan wewenang penyelesaian masalah.
+	dispatched_at
+	TIMESTAMP
+	Merekam tanggal dan jam presisi saat Admin Pusat menekan tombol konfirmasi. Tujuan: Waktu ini menjadi trigger (titik nol) untuk mulai menjalankan hitung mundur waktu SLA.
+	notes
+	TEXT
+	Instruksi atau catatan tambahan dari Admin Pusat (opsional). Tujuan: Membantu memberi konteks prioritas ke Admin Dinas (misal: "Kondisi jalan vital putus total, mohon pengerahan darurat").
+	
+
+4.4.14. Tabel sla_records (Pencatatan Target Waktu / Service Level Agreement)
+Mengisolasi data kalkulasi waktu dari tabel reports utama. Tabel ini menjadi pusat perhitungan kinerja dinas dalam menyelesaikan laporan.
+Nama Kolom
+	Tipe Data
+	Keterangan
+	sla_id
+	VARCHAR
+	Primary Key dengan UUID. Mengidentifikasi rekaman kinerja untuk satu tiket tugas.
+	report_id
+	VARCHAR
+	Foreign Key (Unique) ke reports.report_id. Relasi One-to-One karena satu laporan hanya boleh memiliki satu metrik hitung mundur SLA.
+	sla_start_at
+	TIMESTAMP
+	Waktu argo/timer SLA mulai berdetak. Nilainya otomatis ditarik dari kolom dispatched_at di tabel disposisi.
+	sla_deadline_at
+	TIMESTAMP
+	Target waktu maksimal penyelesaian (deadline). Tujuan: Kalkulasi (Waktu Mulai + Toleransi Kategori Masalah). Digunakan untuk memunculkan indikator peringatan keterlambatan (Eskalasi) di dasbor Admin.
+	total_paused_minutes
+	INT
+	Akumulasi durasi jeda dalam menit (default 0). Tujuan: Sistem akan menggunakan angka ini untuk menggeser sla_deadline_at agar dinas tidak terkena penalti waktu karena penundaan yang sah (misal: hujan badai atau libur nasional).
+	current_status
+	ENUM
+	Membatasi status kalkulasi waktu: 'berjalan' (timer aktif), 'tertunda' (timer dijeda), 'terlambat' (waktu habis), 'selesai' (pekerjaan rampung). Tujuan: Memudahkan filtering di frontend.
+	completed_at
+	TIMESTAMP
+	Waktu aktual saat pekerjaan divalidasi "Selesai". Tujuan: Sistem akan membandingkan waktu ini dengan sla_deadline_at untuk menilai performa kecepatan instansi (Raport Dinas).
+	
+
+4.4.15. Tabel sla_pause_logs (Log Penghentian Waktu SLA)
+Menjaga normalisasi basis data (3NF) karena satu laporan bisa dijeda berkali-kali. Tabel ini memastikan transparansi mengapa sebuah pengerjaan tertunda.
+Nama Kolom
+	Tipe Data
+	Keterangan
+	pause_log_id
+	VARCHAR
+	Primary Key dengan UUID untuk setiap kejadian penundaan waktu.
+	sla_id
+	VARCHAR
+	Foreign Key ke sla_records.sla_id. Menandakan hitung mundur laporan mana yang sedang distop sementara.
+	paused_by
+	VARCHAR
+	Foreign Key ke users.user_id. Merekam ID Admin Dinas atau Pimpinan yang memberikan izin penundaan. Tujuan: Menghindari penyalahgunaan fitur jeda (anti-fraud).
+	pause_reason
+	TEXT
+	Menjabarkan kendala konkret di lapangan (misal: "Kekurangan material aspal" atau "Terkendala izin warga"). Wajib diisi agar pelapor tahu mengapa status perbaikannya terhenti.
+	paused_at
+	TIMESTAMP
+	Titik waktu persis saat Admin menghentikan timer SLA.
+	resumed_at
+	TIMESTAMP
+	Titik waktu saat argo SLA kembali dijalankan. Akan bernilai NULL jika penghentian masih aktif saat ini.
+	paused_duration_minutes
+	INT
+	Durasi penghentian per sesi (dihitung dari resumed_at dikurang paused_at). Nilai ini nantinya akan dijumlahkan dan disetor ke kolom total_paused_minutes di tabel utama SLA.
+	
+
+4.4.16. Tabel officer_attendance (Manajemen Sesi dan Absensi Petugas)
+Tabel ini mencatat sesi check-in dan check-out harian petugas, terpisah agar profil petugas tidak redundan. Entitas ini sengaja dipisahkan dari tabel profil pengguna utama untuk mencegah duplikasi data dan mematuhi kaidah normalisasi basis data, mengingat satu petugas dapat memiliki banyak riwayat absensi dari waktu ke waktu.
+
+
+Nama Kolom
+	Tipe Data
+	Keterangan Teknis dan Alasan Bisnis
+	attendance_id
+	VARCHAR
+	Primary Key. Pengidentifikasi unik untuk setiap sesi kehadiran harian (menggunakan format UUID).
+	officer_id
+	VARCHAR
+	Foreign Key ke tabel users.user_id. Mengaitkan data absensi ini secara spesifik dengan identitas Petugas Lapangan yang sedang bertugas.
+	check_in_at
+	TIMESTAMP
+	Waktu presisi dari peladen (server-side) saat petugas melakukan absensi masuk. Digunakan untuk mencegah manipulasi waktu lokal perangkat.
+	check_in_latitude
+	DECIMAL
+	Titik koordinat garis lintang (latitude) saat check-in. Digunakan oleh sistem pemetaan untuk memvalidasi apakah petugas mengaktifkan sesi kerja di dalam wilayah yurisdiksi dinasnya.
+	check_in_longitude
+	DECIMAL
+	Titik koordinat garis bujur (longitude) saat check-in. Bekerja berpasangan dengan atribut latitude untuk validasi lokasi.
+	check_out_at
+	TIMESTAMP
+	Waktu saat absensi keluar. Nilai dibiarkan NULL (kosong) di dalam basis data sampai petugas secara eksplisit mengakhiri waktu shift kerjanya.
+	device_info
+	VARCHAR
+	Identitas dan detail perangkat (browser/sistem operasi) yang digunakan petugas. Berfungsi untuk keperluan audit keamanan guna mencegah manipulasi absensi dari perangkat pihak ketiga.
+	shift_status
+	ENUM(‘aktif’, ‘istirahat’, ’selesai_shift)
+	Restriksi state atau status ketersediaan petugas saat itu. Data ini sangat krusial agar Admin Dinas tidak salah mendisposisikan tugas kepada personel yang sedang berstatus 'istirahat' atau 'selesai_shift'.
+	
+
+
+
+4.4.17. Tabel field_tasks (Manajemen Eksekusi Tugas Lapangan)
+Tabel ini merupakan tabel inti eksekusi tugas lapangan, satu laporan bisa menghasilkan lebih dari satu tugas jika ada sengketa dan tugas ulang. Tabel ini menjembatani tiket aduan asli dengan alur operasional di lapangan, memungkinkan perhitungan batas waktu yang ketat.
+
+
+Nama Kolom
+	Tipe Data
+	Keterangan Teknis dan Alasan Bisnis
+	task_id
+	VARCHAR
+	Primary Key. Pengidentifikasi unik untuk entitas penugasan spesifik (format UUID).
+	report_id
+	VARCHAR
+	Foreign Key ke tabel reports.report_id. Mengaitkan perintah eksekusi teknis ini dengan tiket laporan asli yang diajukan oleh Warga.
+	officer_id
+	VARCHAR
+	Foreign Key ke tabel users.user_id. Mencatat secara presisi identitas Petugas Lapangan yang memegang kendali atas perbaikan tersebut.
+	assigned_by
+	VARCHAR
+	Foreign Key ke tabel users.user_id. Menyimpan ID Administrator Dinas yang menerbitkan instruksi tugas, krusial untuk pelacakan akuntabilitas (Audit Trail).
+	sla_id
+	VARCHAR
+	Foreign Key ke tabel sla_records.sla_id. Digunakan oleh algoritma sistem untuk mengukur durasi pengerjaan dan memicu indikator "Terlambat" jika melewati batas Service Level Agreement (SLA).
+	task_status
+	ENUM(‘baru’, ‘sedang_dikerjakan’, ‘tertunda’, ‘selesai’, ‘ditugaskan_ulang’)
+	Siklus hidup penugasan. Nilai ini akan secara otomatis memperbarui antarmuka (To-Do List) pada Dasbor Petugas maupun Dasbor Admin.
+	started_at
+	TIMESTAMP
+	Merekam waktu presisi saat petugas menekan tombol mulai pada aplikasi.
+	completed_at
+	TIMESTAMP
+	Merekam waktu saat tugas diklaim tuntas. Sistem akan menggunakan nilai ini untuk melakukan kalkulasi final terhadap performa SLA petugas.
+	officer_latitude
+	DECIMAL
+	Koordinat lokasi petugas pada detik mereka memulai tugas (started_at). Digunakan sebagai variabel input untuk algoritma Geofencing guna memastikan petugas tidak menekan tombol dari jarak jauh.
+	officer_longitude
+	DECIMAL
+	Pasangan koordinat garis bujur saat memulai tugas.
+	
+
+
+
+4.4.18. Tabel task_evidence (Manajemen Bukti Pengerjaan Tugas)
+Tabel ini menyimpan bukti foto sebelum dan sesudah perbaikan (pengerjaan tugas), dipisah dari Tabel field_tasks karena atribut foto tidak bergantung pada status tugas secara fungsional. Pemisahan ini wajib untuk memenuhi bentuk Normalisasi Pertama (1NF) karena satu penugasan secara logis akan menghasilkan lebih dari satu berkas foto.
+
+
+Nama Kolom
+	Tipe Data
+	Keterangan Teknis dan Alasan Bisnis
+	evidence_id
+	VARCHAR
+	Primary Key. UUID unik untuk setiap berkas Proof of Work (bukti penyelesaian pekerjaan).
+	task_id
+	VARCHAR
+	Foreign Key ke tabel field_tasks.task_id. Merangkai setiap bukti visual dengan ID penugasan teknis terkait.
+	evidence_type
+	ENUM(‘sebelum’, ‘sesudah’)
+	Restriksi jenis dokumentasi. Memungkinkan antarmuka web (frontend) merender komponen komparasi visual (perbandingan gambar Before/After) bagi Administrator dan Warga.
+	photo_url
+	VARCHAR
+	Direktori/URL yang mengarah ke cloud storage tempat foto disimpan. Sebelum disimpan, gambar diproses terlebih dahulu untuk pembubuhan stempel informasi (Watermark) secara otomatis.
+	latitude
+	DECIMAL
+	Metadata koordinat garis lintang yang diekstraksi dari perangkat keras kamera saat foto diambil. Mencegah penggunaan foto lama dari galeri perangkat.
+	longitude
+	DECIMAL
+	Metadata koordinat garis bujur dari lokasi fisik pengambilan gambar.
+	taken_at
+	TIMESTAMP
+	Stempel waktu berbasis peladen (server-side) saat data visual masuk ke dalam sistem, melindungi validitas pelaporan dari potensi modifikasi jam lokal.
+	
+
+4.4.19. Tabel task_postponements (Manajemen Penundaan Tugas)
+Tabel ini mencatat setiap pengajuan penundaan oleh petugas, dipisah dari tabel field_tasks untuk menghindari repeating groups. Mengingat kondisi lapangan dapat berubah, satu laporan yang sama bisa saja diajukan penundaan beberapa kali (misalnya karena hujan lebat hari ini, dan alat rusak keesokan harinya).
+
+
+Nama Kolom
+	Tipe Data
+	Keterangan Teknis dan Alasan Bisnis
+	postponement_id
+	VARCHAR
+	Primary Key. Identifikasi UUID mandiri untuk setiap siklus pengajuan tunda.
+	task_id
+	VARCHAR
+	Foreign Key ke tabel field_tasks.task_id. Menunjuk langsung ke tiket eksekusi lapangan yang membutuhkan penundaan.
+	requested_by
+	VARCHAR
+	Foreign Key ke tabel users.user_id. Melacak rekam jejak digital identitas Petugas Lapangan yang meminta intervensi penundaan.
+	reason
+	TEXT
+	Kolom deskriptif yang wajib diisi oleh Petugas untuk menjustifikasi urgensi teknis (seperti kehabisan material aspal atau kendala cuaca ekstrem).
+	estimated_resume_at
+	TIMESTAMP
+	Waktu estimasi kapan perbaikan akan dilanjutkan kembali. Digunakan sistem untuk mengingatkan petugas secara otomatis (reminder) pada waktu yang ditentukan.
+	approved_by
+	VARCHAR
+	Foreign Key ke tabel users.user_id. ID Admin Dinas yang memiliki wewenang (authorization) untuk memvalidasi kelayakan alasan tunda.
+	approval_status
+	ENUM(‘menunggu’, ‘disetujui’, ‘ditolak’)
+	Indikator state permohonan. Jika status berubah menjadi 'disetujui', barulah sistem backend akan secara otomatis menghentikan (pause) penghitungan waktu SLA.
+	requested_at
+	TIMESTAMP
+	Stempel presisi kapan notifikasi pengajuan tunda dilemparkan oleh Petugas ke Dasbor Admin.
+	
+
+
+
+4.4.20. T[g]abel confirmation_requests (Permintaan Konfirmasi Warga)
+Tabel ini dirancang khusus untuk mencatat alur permintaan konfirmasi yang dikirimkan kepada pelapor (warga) setelah pengerjaan tugas di lapangan dinyatakan selesai. Ketimbang menambahkan kolom secara langsung pada tabel utama reports, entitas ini dipisah untuk mencegah adanya transitive dependency (ketergantungan transitif) dan menjaga basis data tetap mematuhi bentuk normalisasi ketiga (3NF). Hal ini juga memastikan logika batas waktu (deadline) dan status penguncian (one-time action) dapat dikelola tanpa membebani tabel laporan utama.
+Nama Kolom
+	Tipe Data
+	Keterangan
+	confirmation_id
+	VARCHAR
+	Primary Key, UUID
+	report_id
+	VARCHAR
+	Foreign Key, Unique → reports.report_id (Anggota 2)
+	warga_id
+	VARCHAR
+	Foreign Key → users.user_id (Anggota 1)
+	deadline_at
+	TIMESTAMP
+	Batas waktu konfirmasi (3×24 jam kerja)
+	response
+	ENUM('terima','tolak','timeout')
+	Respons warga, NULL jika belum merespons
+	responded_at
+	TIMESTAMP
+	Waktu warga memberikan respons
+	is_locked
+	BOOLEAN
+	TRUE setelah respons diberikan (one-time action)
+	
+
+4.4.21. Tabel dispute_records (Catatan Sengketa Laporan)
+Tabel ini berfungsi untuk mendokumentasikan secara spesifik sengketa atau penolakan yang diajukan oleh warga terhadap laporan yang dianggap selesai. Dengan mengisolasi data sengketa dari tabel reports, sistem dapat melacak informasi historis yang mendetail—seperti alasan penolakan, bukti foto pendukung baru, hingga catatan resolusi akhir dari Admin Dinas—tanpa mencemari integritas data laporan awal. Hal ini memastikan setiap proses mediasi memiliki rekam jejak yang utuh.
+Nama Kolom
+	Tipe Data
+	Keterangan
+	dispute_id
+	VARCHAR
+	Primary Key, UUID
+	report_id
+	VARCHAR
+	Foreign Key, Unique → reports.report_id (Anggota 2)
+	filed_by
+	VARCHAR
+	Foreign Key → users.user_id (Anggota 1)
+	reason_text
+	TEXT
+	Alasan penolakan, wajib diisi
+	evidence_photo_url
+	VARCHAR
+	Foto bukti baru dari warga, wajib ada
+	filed_at
+	TIMESTAMP
+	Waktu sengketa diajukan
+	resolution
+	ENUM('tugaskan_kembali','tutup_laporan')
+	Keputusan Admin Dinas, NULL jika belum
+	resolved_by
+	VARCHAR
+	Foreign Key → users.user_id (Admin Dinas, Anggota 1)
+	resolution_notes
+	TEXT
+	Alasan keputusan resolusi, wajib diisi
+	resolved_at
+	TIMESTAMP
+	Waktu resolusi diputuskan
+	
+
+4.4.22. Tabel notifications (Pusat Notifikasi Sistem)
+Tabel ini didedikasikan untuk merekam dan mengelola seluruh riwayat pemberitahuan yang dikirimkan oleh sistem kepada pengguna. Tabel ini bertindak sebagai pusat log komunikasi asinkron yang mencatat berbagai event penting, mulai dari perubahan status laporan, peringatan SLA (Service Level Agreement), hingga pembaruan sengketa. Desain ini memastikan status keterbacaan (read/unread) setiap notifikasi dapat dikelola per pengguna secara independen tanpa memengaruhi tabel transaksi bisnis lainnya.
+
+
+Nama Kolom
+	Tipe Data
+	Keterangan
+	notification_id
+	VARCHAR
+	Primary Key, UUID
+	recipient_id
+	VARCHAR
+	Foreign Key → users.user_id (Anggota 1)
+	report_id
+	VARCHAR
+	Foreign Key → reports.report_id (Anggota 2), opsional
+	notification_type
+	ENUM('status_berubah','sengketa_masuk','sengketa_diputus','tugas_baru','sla_warning','selesai_otomatis')
+	Kategori notifikasi
+	message_text
+	TEXT
+	Isi pesan notifikasi
+	is_read
+	BOOLEAN
+	Sudah dibaca atau belum
+	sent_at
+	TIMESTAMP
+	Waktu notif dikirim
+	
+
+4.4.23. Tabel audit_logs (Rekam Jejak Digital Sistem)
+Tabel ini dibangun sebagai fondasi keamanan dan akuntabilitas sistem, di mana setiap aktivitas manipulasi data yang krusial direkam secara komprehensif. Tabel ini beroperasi dengan prinsip append-only atau immutable (tidak mengizinkan operasi UPDATE maupun DELETE) untuk mencegah modifikasi riwayat secara sepihak. Dengan mengomparasi old_value dan new_value dalam format JSON , tabel ini menyediakan rekam jejak forensik yang tamper-proof apabila sewaktu-waktu dibutuhkan investigasi sistem.
+Nama Kolom
+	Tipe Data
+	Keterangan
+	log_id
+	VARCHAR(36)
+	Primary Key, UUID
+	actor_id
+	VARCHAR(36)
+	Foreign Key → users.user_id (Anggota 1), nullable (aksi sistem)
+	report_id
+	VARCHAR(36)
+	Foreign Key → reports.report_id (Anggota 2), opsional
+	task_id
+	VARCHAR(36)
+	Foreign Key → field_tasks.task_id (Anggota 5), opsional
+	action_type
+	VARCHAR(100)
+	Jenis aksi (cth: REPORT_VALIDATED, SLA_PAUSED)
+	old_value
+	TEXT
+	Nilai sebelum perubahan (format JSON)
+	new_value
+	TEXT
+	Nilai setelah perubahan (format JSON)
+	ip_address
+	VARCHAR(45)
+	Alamat IP aktor
+	device_info
+	VARCHAR(255)
+	Info perangkat aktor
+	logged_at
+	TIMESTAMP
+	Waktu kejadian (server-side, tidak dapat dimanipulasi)
+	
+
+
+
+
+
+________________
+BAB 5
+DESAIN KOMPONEN
+
+
+
+
+Bab ini mendeskripsikan algoritma dan logika prosedural internal dari masing-masing komponen subsistem secara sistematis. Berdasarkan dekomposisi fungsional yang telah didefinisikan pada Bab 3.2, desain komponen ini dijabarkan menggunakan Procedural Description Language (PDL) / Pseudocode untuk memandu proses implementasi kode program.
+
+
+
+
+5.1. Komponen Manajemen Akun dan Autentikasi (Proses 1.0)
+Komponen ini bertanggung jawab atas alur pendaftaran dan validasi sesi masuk (login) pengguna dengan memanfaatkan Layanan Autentikasi untuk mengirimkan kode OTP.
+
+
+Pseudocode 1.0 - Autentikasi Pengguna:
+
+
+FUNCTION authenticateUser(input_data, action_type):
+    IF action_type == "REGISTER" THEN
+        READ input_data (Nama_Lengkap, Email, Nomor_HP, Password)
+        CALL Layanan_Autentikasi TO SEND OTP_Token
+        
+        WAIT FOR user_otp_input
+        IF user_otp_input == OTP_Token AND status_validasi == VALID THEN
+            INSERT INTO D1_Data_Akun (Nama, Email, Nomor_HP, Hash(Password))
+            RETURN "Pendaftaran Berhasil"
+        ELSE
+            RETURN "ERROR: Token OTP tidak valid atau kedaluwarsa"
+        END IF
+        
+    ELSE IF action_type == "LOGIN" THEN
+        READ D1_Data_Akun WHERE Email == input_data.email
+        IF D1_Data_Akun IS FOUND AND checkHash(input_data.password, D1_Data_Akun.Password) THEN
+            GENERATE session_token
+            RETURN "Login Berhasil", session_token
+        ELSE
+            RETURN "ERROR: Kredensial tidak valid"
+        END IF
+    END IF
+END FUNCTION
+
+
+5.2. Komponen Pengelolaan Laporan Warga (Proses 2.0)
+Komponen ini menangani pembuatan laporan baru oleh warga, termasuk pemanggilan API Layanan Lokasi (Geocoding) untuk mendapatkan data koordinat GPS yang akurat guna keperluan validasi wilayah.
+Pseudocode 2.0 - Pembuatan Laporan Baru:
+FUNCTION createCitizenReport(session_token, foto, deskripsi, latitude, longitude):
+    VERIFY session_token AGAINST D1_Data_Akun
+    
+    // Validasi izin akses dan kelengkapan
+    IF camera_permission == DENIED OR gps_permission == DENIED THEN
+        RETURN "ERROR: Izin akses kamera dan lokasi diwajibkan"
+    END IF
+    
+    // Pemanggilan API Lokasi (Geocoding)
+    location_data = CALL API_Layanan_Lokasi(latitude, longitude)
+    
+    IF location_data.is_valid == FALSE THEN
+        RETURN "ERROR: Titik koordinat berada di luar wilayah layanan"
+    ELSE
+        ticket_number = GENERATE_UNIQUE_TICKET()
+        status_awal = "Menunggu Verifikasi"
+        
+        INSERT INTO D2_Data_Laporan (ticket_number, latitude, longitude, foto, deskripsi, status_awal)
+        RETURN "Laporan berhasil dibuat", ticket_number
+    END IF
+END FUNCTION
+
+
+
+
+5.3. Komponen Disposisi dan Penugasan (Proses 3.0)
+Komponen ini mengelola antrean masuk, menyaring potensi pelaporan duplikat melalui fitur Merge Ticket , dan melimpahkan penugasan dari Administrator Pusat ke Administrator Dinas sekaligus memicu dimulainya perhitungan SLA.
+
+
+Pseudocode 3.0 - Algoritma Disposisi & Merge Ticket:
+
+
+FUNCTION processDispositionAndMerge(action_type, ticket_id, target_id):
+    READ D2_Data_Laporan WHERE report_id == ticket_id
+    
+    IF action_type == "MERGE_TICKET" THEN
+        // target_id adalah ID Child Ticket
+        UPDATE D2_Data_Laporan 
+        SET status = "Tergabung", parent_report_id = ticket_id 
+        WHERE report_id == target_id
+        RETURN "Laporan duplikat berhasil digabung"
+        
+    ELSE IF action_type == "DISPOSISI_DINAS" THEN
+        // target_id adalah ID Dinas Tujuan
+        UPDATE D2_Data_Laporan SET status = "Dalam Peninjauan" WHERE report_id == ticket_id
+        
+        // Memulai Perhitungan SLA
+        INSERT INTO sla_records (report_id, sla_start_at, sla_deadline_at, current_status)
+        VALUES (ticket_id, CURRENT_TIMESTAMP, CALCULATE_DEADLINE(), 'berjalan')
+        
+        RETURN "Laporan diteruskan ke antrean Dinas"
+        
+    ELSE IF action_type == "TUGASKAN_PERSONIL" THEN
+        // target_id adalah ID Petugas Lapangan
+        READ officer_attendance TO CHECK shift_status
+        IF officer.shift_status == "aktif" THEN
+            INSERT INTO field_tasks (report_id, officer_id, task_status)
+            UPDATE D2_Data_Laporan SET status = "Ditugaskan" WHERE report_id == ticket_id
+            CALL Layanan_Notifikasi TO SEND Notifikasi_Tugas_Baru
+            RETURN "Petugas berhasil ditugaskan"
+        ELSE
+            RETURN "ERROR: Petugas sedang tidak tersedia (Istirahat/Off)"
+        END IF
+    END IF
+END FUNCTION
+
+
+FUNCTION processTaskPostponement(postponement_id, admin_id, admin_decision, catatan_admin):
+    READ task_postponements WHERE postponement_id == postponement_id
+    
+    IF admin_decision == "DISETUJUI" THEN
+        UPDATE task_postponements SET approval_status = 'disetujui', approved_by = admin_id
+        
+        // Menghentikan perhitungan SLA sementara (FR-JDA-03)
+        INSERT INTO sla_pause_logs (sla_id, paused_by, pause_reason, paused_at)
+        UPDATE sla_records SET current_status = 'tertunda'
+        
+        RETURN "Penundaan disetujui, SLA dihentikan sementara"
+        
+    ELSE IF admin_decision == "DITOLAK" THEN
+        UPDATE task_postponements SET approval_status = 'ditolak', approved_by = admin_id
+        UPDATE field_tasks SET task_status = 'sedang_dikerjakan' // Kembalikan status tugas
+        
+        RETURN "Penundaan ditolak, petugas harus meneruskan pekerjaan"
+    END IF
+END FUNCTION
+
+
+FUNCTION automatedSLAChecker():
+    // Fungsi ini berjalan secara otomatis di latar belakang setiap 5 menit (Cron Job)
+    READ sla_records WHERE current_status == 'berjalan'
+    
+    FOR EACH record IN sla_records:
+        IF CURRENT_TIMESTAMP > record.sla_deadline_at THEN
+            UPDATE sla_records SET current_status = 'terlambat' WHERE sla_id == record.sla_id
+            
+            // Merujuk FR-ESK-02
+            UPDATE D2_Data_Laporan SET status = 'Terlambat' WHERE report_id == record.report_id
+            
+            CALL Layanan_Notifikasi TO SEND Peringatan_Eskalasi TO Admin_Dinas
+        END IF
+    END FOR
+END FUNCTION
+
+
+
+
+5.4. Komponen Eksekusi dan Sengketa (Proses 4.0)
+Komponen ini digunakan untuk mengelola aktivitas Petugas Lapangan, mulai dari pencatatan absensi harian berbasis GPS , eksekusi tugas, pengajuan penundaan kendala teknis , hingga penyelesaian sengketa laporan.
+
+
+Pseudocode 4.1 - Manajemen Sesi & Absensi Petugas Lapangan:
+
+
+FUNCTION processOfficerAttendance(officer_id, action_type, lat, lon, device_info):
+    IF action_type == "CHECK_IN" THEN
+        // Validasi GPS Petugas dengan Yurisdiksi Dinas
+        IF validateRegion(lat, lon, officer.work_region_id) == FALSE THEN
+            RETURN "ERROR: Anda berada di luar wilayah kerja"
+        END IF
+        
+        INSERT INTO officer_attendance (attendance_id, officer_id, check_in_at, check_in_latitude, check_in_longitude, device_info, shift_status)
+        VALUES (GENERATE_UUID(), officer_id, CURRENT_TIMESTAMP, lat, lon, device_info, 'aktif')
+        RETURN "Check-In Berhasil"
+        
+    ELSE IF action_type == "CHECK_OUT" THEN
+        UPDATE officer_attendance 
+        SET check_out_at = CURRENT_TIMESTAMP, shift_status = 'selesai_shift' 
+        WHERE officer_id = officer_id AND check_out_at IS NULL
+        RETURN "Check-Out Berhasil"
+    END IF
+END FUNCTION
+
+
+
+
+Pseudocode 4.2 - Eksekusi Tugas, Penundaan, & Resolusi Sengketa:
+
+
+FUNCTION executeFieldTask(task_id, officer_lat, officer_lon, action_type, input_data):
+    READ field_tasks WHERE task_id == task_id
+    READ D2_Data_Laporan WHERE report_id == field_tasks.report_id
+    
+    IF action_type == "MULAI_KERJA" THEN
+        // Validasi Geofencing untuk Eksekusi
+        distance = CALCULATE_DISTANCE(officer_lat, officer_lon, D2.latitude, D2.longitude)
+        IF distance > ALLOWED_RADIUS THEN
+            RETURN "ERROR: Anda belum berada di lokasi titik kerusakan"
+        END IF
+        
+        UPDATE field_tasks SET task_status = 'sedang_dikerjakan', started_at = CURRENT_TIMESTAMP
+        RETURN "Tugas dimulai"
+        
+    ELSE IF action_type == "AJUKAN_TUNDA" THEN
+        // Input_data berisi alasan dan estimasi waktu
+        IF input_data.reason IS EMPTY THEN
+            RETURN "ERROR: Alasan penundaan wajib diisi"
+        END IF
+        
+        INSERT INTO task_postponements (task_id, requested_by, reason, estimated_resume_at, approval_status, requested_at)
+        VALUES (task_id, officer_id, input_data.reason, input_data.estimasi, 'menunggu', CURRENT_TIMESTAMP)
+        
+        UPDATE field_tasks SET task_status = 'tertunda'
+        CALL Layanan_Notifikasi TO SEND Notifikasi_Tunda TO Admin_Dinas
+        RETURN "Pengajuan penundaan berhasil dikirim"
+        
+    ELSE IF action_type == "UNGGAH_BUKTI" THEN
+        SAVE input_data.foto_bukti INTO Cloud_Storage
+        APPLY Watermark TO input_data.foto_bukti
+        
+        // Memasukkan data material yang digunakan (Opsional) merujuk FR-PTG-23
+        IF input_data.material_terpakai IS NOT EMPTY THEN
+            SAVE input_data.material_terpakai INTO Data_Logistik
+        END IF
+        
+        INSERT INTO task_evidence (task_id, evidence_type, photo_url, taken_at)
+        
+        UPDATE field_tasks SET task_status = 'selesai', completed_at = CURRENT_TIMESTAMP
+        UPDATE D2_Data_Laporan SET status = 'Menunggu Konfirmasi Warga'
+        CALL Layanan_Notifikasi TO SEND Permintaan_Konfirmasi
+        RETURN "Bukti perbaikan terkirim"
+    END IF
+END FUNCTION
+
+
+FUNCTION processDispute(ticket_id, warga_response, alasan_sengketa):
+    IF warga_response == "TERIMA" THEN
+        UPDATE D2_Data_Laporan SET status = 'Selesai'
+        RETURN "Laporan ditutup"
+        
+    ELSE IF warga_response == "TOLAK" THEN
+        IF alasan_sengketa IS EMPTY THEN
+            RETURN "ERROR: Alasan sengketa wajib diisi"
+        END IF
+        
+        INSERT INTO dispute_records (report_id, reason_text, filed_at)
+        UPDATE D2_Data_Laporan SET status = 'Sengketa'
+        FORWARD_TICKET_TO Admin_Dinas
+        RETURN "Sengketa berhasil diajukan untuk dievaluasi"
+    END IF
+END FUNCTION
+________________
+
+
+BAB 6
+DESAIN ANTARMUKA PENGGUNA
+
+
+
+
+6.1. Gambaran Umum Antarmuka Pengguna
+Perangkat lunak AduAja dirancang mengusung arsitektur antarmuka berbasis web yang responsif (Responsive Web Design). Pendekatan ini memastikan pengalaman pengguna (User Experience) tetap adaptif dan optimal saat diakses melalui perangkat desktop, tablet, maupun ponsel pintar. Filosofi desain antarmuka ditekankan pada efisiensi birokrasi, transparansi, dan aksesibilitas, yang secara teknis dibagi ke dalam tiga skema interaksi utama berdasarkan hak akses: 
+1. Antarmuka Warga (Pelapor) - Mobile-Optimized & User-Centric 
+Antarmuka untuk masyarakat dirancang dengan pendekatan responsif yang memprioritaskan pengalaman seluler (mobile-first), meskipun tetap beroperasi penuh pada tampilan desktop. Karena skenario utama pelaporan terjadi di lapangan, alur interaksi dibuat ringkas: dimulai dari Dasbor Beranda interaktif, hingga formulir pelaporan yang terintegrasi langsung dengan antarmuka kamera dan pemetaan (Geotagging) secara real-time. Antarmuka ini juga menyediakan modul resolusi agar warga dapat memberikan konfirmasi persetujuan atau mengajukan sengketa secara transparan.
+2. Antarmuka Administrator (Pusat & Dinas) - Desktop-Optimized & Data-Driven 
+Dirancang khusus untuk operasional manajerial pada layar lebar (Desktop), antarmuka ini berfokus pada kapabilitas pengelolaan data berskala besar. Dasbor utama menyajikan tabel antrean interaktif yang dilengkapi fitur filter, pencarian spesifik, dan pengurutan dinamis. Administrator juga dibekali alat bantu visual tingkat lanjut, seperti antarmuka komparasi Merge Ticket untuk menangani laporan ganda secara berdampingan (side-by-side), serta visualisasi peta sebaran untuk memvalidasi dan mendisposisikan laporan ke instansi yang tepat secara presisi. 
+3. Antarmuka Petugas Lapangan - Outdoor-Optimized & Task-Oriented 
+Sama halnya dengan antarmuka Warga, antarmuka petugas dirancang responsif dengan fokus utama pada perangkat mobile untuk penggunaan luar ruangan (outdoor). Komponen visual pada antarmuka ini dioptimalkan dengan rasio kontras warna yang tinggi dan tipografi tebal untuk memastikan keterbacaan maksimal di bawah paparan sinar matahari langsung. Alur kerjanya difokuskan pada eksekusi lapangan: mencakup manajemen To-Do List berdasarkan prioritas SLA, fitur presensi (Check-In) berbasis GPS, panduan navigasi rute, dan kemudahan unggah foto dokumentasi sebagai bukti penyelesaian pekerjaan (Proof of Work).
+
+
+
+
+6.2. Gambar Layar
+6.2.1 Antarmuka Registrasi, Login, dan Verifikasi OTP
+Antarmuka ini digunakan oleh seluruh pengguna (Warga, Admin, dan Petugas) untuk mengakses sistem AduAja. Terdapat form pendaftaran, form masuk, dan halaman khusus untuk memasukkan kode OTP yang dikirimkan ke email atau nomor HP untuk menjamin keamanan autentikasi.
+
+
+  
+
+Figure 5. 
+Gambar 1. Visualisasi Antarmuka Registrasi, Login, dan Verifikasi OTP 
+________________
+6.2.2 Antarmuka Beranda dan Riwayat Laporan Warga 
+Halaman ini adalah dasbor utama yang pertama kali dilihat Warga setelah berhasil login. Halaman ini menyajikan ringkasan status tiket pelaporan dan akses cepat untuk membuat laporan baru. 
+  
+
+Figure 6. 
+Gambar 2: Visualisasi Antarmuka Beranda dan Riwayat Laporan Warga 
+6.2.3 Antarmuka Pembuatan Laporan Baru 
+Halaman ini memfasilitasi Warga untuk mengirimkan aduan infrastruktur. Sistem membatasi unggahan foto hanya melalui kamera langsung (real-time) dan mendeteksi titik koordinat GPS secara otomatis. 
+________________
+
+
+  
+
+Gambar 3: Visualisasi Antarmuka Formulir Pembuatan Laporan Baru 
+________________
+
+
+6.2.4 Antarmuka Halaman Daftar Tugas Petugas
+Halaman ini memudahkan petugas untuk memantau tugas yang tersedia untuk dilakukan, dengan tugas dapat dicari melalui kata kunci tugas, lokasi, pelapor tugas. Daftar tugas juga dapat diurutkan berdasarkan prioritas SLA dan beberapa kategori.
+  
+
+Figure 7. 
+Gambar 4 : Visualisai Halaman Daftar Tugas Petugas
+
+
+6.2.5 Antarmuka Detail Tugas Petugas
+Antarmuka ini menampilkan detail tugas berupa deskripsi tugas, keterangan SLA, lokasi, dan informasi pelapor. Petugas dapat melakuan beberapa tindakan lanjutan terhadap tugas seperti Ajukan Penundaan, Lapor Balik (Invalid), dan Ajukan Eskalasi. Status Tugas akan berubah setelah petugas menekan Mulai Kerjakan Tugas
+  
+
+Figure 8. 
+Gambar 5 : Visualisai Halaman Detail Tugas Petugas
+
+
+6.2.6 Antarmuka Progress Pengerjaan Tugas
+Antarmuka ini memastikan progress pengerjaan tugas dari petugas dengan menerima foto awal sebelum pengerjaan, kemudian foto akhir setelah pengerjaan.
+  
+
+Figure 9. 
+Gambar 6 : Visualisasi Progress Pengerjaan Tugas
+
+
+
+
+
+
+
+
+
+
+________________
+6.3. Objek Layar dan Aksi
+6.3.1 Tabel Objek dan Aksi pada Antarmuka Login & OTP (Merujuk ke Gambar 1) 
+Objek Layar (Screen Object)
+	Tindakan (Action)
+	Deskripsi & Respons Sistem
+	Kolom "Email” (Halaman Login)
+	Input Text
+	Tempat pengguna memasukkan identitas kredensial yang telah didaftarkan.
+	Kolom “Password”(Halaman Login)
+	Input Text
+	Tempat pengguna memasukkan identitas kredensial yang telah didaftarkan.
+	Kotak centang “Ingat Saya”
+	Klik / Tap
+	Berguna agar pengguna tidak perlu melakukan login ulang setiap membuka website
+	Teks Tautan “Lupa password”
+	Klik / Tap
+	Tekan tombol ini jika pengguna tidak mengingat password ataupun kredensial yang telah didaftarkan
+	Tombol "Masuk / Login" (Halaman Login)
+	Klik / Tap
+	Mengirim data kredensial ke Layanan Autentikasi. Jika data benar, sistem akan memunculkan layar verifikasi OTP. Jika salah, sistem menampilkan peringatan error.
+	Teks Tautan “Daftar”(Halaman Login)
+	Klik / Tap
+	Tombol yang mengarahkan pengguna ke halaman register (daftar)
+	Kolom “Nama Lengkap”
+	Input Text
+	Tempat pengguna memasukkan nama lengkapnya sebagai nama akun.
+	Kolom “NIK”
+	Input Text
+	Tempat penggnna memasukkan NIK nya sebagai syarat untuk membuat akun
+	Kolom “Nomor HP”
+	input Text
+	Tempat pengguna memasukkan nomor hp yang akan didaftarkan ke akun
+	Kolom “Email” (Halaman Daftar)
+	Input Text
+	Tempat pengguna memasukkan Email yang ingin didaftarkan ke Aplikasi
+	Kolom “Password” (Halaman Daftar)
+	Input Text
+	Tempat pengguna memasukkan password yang ingin digunakan untuk akunnya
+	Teks Tautan “Daftar” (Halaman Daftar)
+	Klik / Tap
+	Mengarahkan ke halaman Verifikasi OTP
+	Tombol “Masuk” (Halaman Daftar)
+	Klik / Tap
+	Mengarahkan pengguna ke halaman login
+	Kolom "Masukkan OTP"
+	Input Angka
+	Pengguna memasukkan 4-6 digit kode OTP yang diterima.
+	Tombol "Verifikasi OTP"
+	Klik / Tap
+	Memvalidasi kode. Jika cocok, sistem memberikan hak akses (login sukses) dan mengarahkan ke Dasbor sesuai role (Warga/Admin/Petugas).
+	
+
+6.3.2 Tabel Objek dan Aksi pada Antarmuka Beranda Warga 
+Objek Layar
+	Tindakan
+	Deskripsi & Respons Sistem
+	Tombol Notifikasi
+	Klik / Tap
+	Mengarahkan ke halaman Notifikasi. Sistem akan menampilkan badge merah jika ada pemberitahuan baru yang belum dibaca.
+	Ikon Profil Pengguna
+	Klik / Tap
+	Mengarahkan ke halaman Profil Warga untuk mengelola data akun.
+	Tombol Keluar (Logout)
+	Klik / Tap
+	Mengakhiri sesi pengguna secara aman dan mengembalikan layar ke halaman Login.
+	Kartu "Buat Laporan Baru"
+	Klik / Tap
+	Membuka halaman Formulir Laporan Baru agar Warga bisa langsung mengambil foto dan lokasi kejadian.
+	Kartu "Riwayat Laporan"
+	Klik / Tap
+	Membuka daftar lengkap seluruh laporan yang pernah dikirimkan oleh Warga tersebut.
+	Kartu "Ringkasan Laporan"
+	Read-only
+	Menampilkan angka statistik laporan secara real-time berdasarkan statusnya (Total Laporan, Diproses, Selesai, Ditolak).
+	Teks Tautan "Lihat Semua"
+	Klik / Tap
+	Berfungsi sebagai jalan pintas untuk membuka halaman Riwayat Laporan secara penuh.
+	Kartu "Laporan Terbaru"
+	Klik / Tap
+	Menampilkan ringkasan maksimal 3 laporan terakhir (judul, status, ID, lokasi, tanggal). Jika salah satu kartu diklik, sistem akan memuat halaman detail untuk laporan tersebut.
+	Tombol "Buat Laporan Pertama"
+	Klik / Tap
+	(Hanya muncul jika antrean laporan kosong) Berfungsi sama seperti kartu "Buat Laporan Baru" untuk memulai pelaporan.
+	
+
+
+
+6.3.3 Tabel Objek dan Aksi pada Halaman Buat Laporan 
+Objek Layar
+	Tindakan
+	Deskripsi & Respons Sistem
+	Tombol Kembali
+	Klik / Tap
+	Membatalkan pembuatan laporan dan kembali ke Dashboard Warga.
+	Dropdown Kategori
+	Pilih
+	Memilih jenis kerusakan (Infrastruktur Jalan, Listrik, Drainase, dll).
+	Tombol Buka Kamera
+	Klik / Tap
+	Membuka antarmuka kamera WebRTC (di dalam browser) untuk mengambil foto real-time, lalu otomatis menyimpannya ke dalam formulir. Akses ke galeri dinonaktifkan.
+	Input Deskripsi
+	Ketik
+	Mengisi detail kerusakan. Sistem memvalidasi minimal 20 karakter.
+	Input Patokan Lokasi
+	Ketik
+	Mengisi keterangan lokasi fisik (contoh: "Depan Balai Kota").
+	Peta (Maps)
+	Geser / Tap
+	Pengguna dapat menggeser pin atau tap peta untuk menentukan titik koordinat secara manual.
+	Tombol Ambil Koordinat GPS
+	Klik / Tap
+	Mengakses Geolocation API perangkat untuk mengisi otomatis Latitude dan Longitude.
+	Tombol Kirim Laporan
+	Klik / Tap
+	Validasi form. Jika valid, sistem menyimpan data, membuat ID Tiket, dan menetapkan status "Menunggu Verifikasi".
+	6.3.4 Tabel Objek dan Aksi Antarmuka Halaman Daftar Tugas Petugas 
+Objek Layar 
+	Tindakan 
+	Deskripsi & Respons Sistem
+	Kolom "Search"
+	Input Text
+	Tempat pengguna memasukkan kata kunci untuk mencari tugas, lokasi, atau pelapor. Sistem akan memfilter tugas yang relevan.
+	Dropdown "Kategori"
+	Pilih / Klik
+	Berguna untuk menyaring daftar tugas berdasarkan kategori infrastruktur, seperti Jalan, Penerangan, Drainase, dll.
+	Dropdown Sorting
+	Pilih / Klik
+	Digunakan untuk mengurutkan daftar tugas berdasarkan Prioritas SLA (terdekat), Jarak Terdekat, atau Tanggal Laporan.
+	Tab Navigasi Status Tugas
+	Klik / Tap
+	Tab ("Tugas Baru", "Sedang Dikerjakan", "Tertunda") yang jika ditekan akan merubah tampilan daftar tugas sesuai dengan status pengerjaannya.
+	Kartu / Card Tugas
+	Klik / Tap
+	Baris atau kartu berisi ringkasan tugas. Jika ditekan, sistem akan mengarahkan pengguna ke halaman Detail Tugas untuk tugas tersebut.
+	6.3.5 Tabel Objek dan Aksi Antarmuka Detail Tugas Petugas 
+Objek Layar 
+	Tindakan 
+	Deskripsi & Respons Sistem
+	Tombol "Kembali"
+	Klik / Tap
+	Ikon panah kiri yang akan mengembalikan pengguna ke halaman Daftar Tugas sebelumnya.
+	Tombol "Buka di Google Maps"
+	Klik / Tap
+	Mengarahkan pengguna ke aplikasi pihak ketiga (Google Maps) dengan parameter titik koordinat (latitude & longitude) lokasi tugas.
+	Tombol "Koreksi Koordinat"
+	Klik / Tap
+	Membuka jendela pop-up (modal) form koreksi koordinat jika titik tugas di peta dianggap tidak akurat oleh petugas.
+	Kolom Latitude & Longitude (Modal Koreksi)
+	Input Text
+	Tempat petugas mengetikkan angka koordinat baru yang valid. Data ini akan dikirim untuk diverifikasi oleh admin.
+	Tombol "Hubungi Pelapor"
+	Klik / Tap
+	Membuka pop-up berisi informasi kontak pelapor, serta menampilkan tombol "Telepon" yang terhubung langsung ke panggilan perangkat.
+	Tombol Tindakan Lainnya
+	Klik / Tap
+	Terdapat 3 pilihan tombol: "Ajukan Penundaan", "Lapor Balik (Invalid)", dan "Ajukan Eskalasi". Masing-masing membuka form pop-up dengan input dropdown alasan dan deskripsi wajib.
+	Tombol "Mulai Kerjakan Tugas"
+	Klik / Tap
+	Memunculkan modal konfirmasi untuk memulai tugas. Sistem mewajibkan petugas mengisi "Deskripsi Awal Pengerjaan" minimal 25 karakter sebelum bisa memulai.
+	Tombol "Lanjutkan Pengerjaan"
+	Klik / Tap
+	Tombol yang muncul saat tugas berstatus sedang dikerjakan. Jika ditekan, akan mengarahkan petugas ke halaman eksekusi untuk mengambil foto.
+	6.3.6 Tabel Objek dan Aksi Antarmuka Progress Pengerjaan Tugas 
+Objek Layar
+	Tindakan
+	Deskripsi & Respons Sistem
+	Tombol "Buka Kamera"
+	Klik / Tap
+	Membuka akses webcam atau kamera perangkat secara langsung di dalam browser untuk mengambil foto kondisi awal/akhir lapangan.
+	Slider Zoom (Antarmuka Kamera)
+	Geser / Drag
+	Mengatur tingkat perbesaran (zoom) digital kamera dari 1.0x hingga 5.0x.
+	Tombol Ikon (Grid, Flash, Switch)
+	Klik / Tap
+	Berfungsi untuk menampilkan garis panduan (grid), menyalakan efek layar putih sebagai flash, atau membalik arah kamera (depan/belakang).
+	Tombol Capture (Antarmuka Kamera)
+	Klik / Tap
+	Tombol bulat merah untuk mengambil tangkapan layar video kamera dan memunculkannya dalam bentuk pratinjau (preview) foto.
+	Tombol "Gunakan Foto"
+	Klik / Tap
+	Mengonfirmasi hasil tangkapan kamera. Sistem menutup antarmuka kamera dan menampilkan foto yang diambil pada halaman utama.
+	Tombol "Simpan Foto Awal"
+	Klik / Tap
+	Mengirim data foto before (sebelum perbaikan) ke server sistem dan menyimpan progres pengerjaan.
+	Tombol "Selesai - Ambil Foto Sesudah"
+	Klik / Tap
+	Mengubah tahapan form (dari kondisi "Awal" menjadi kondisi "Akhir") agar pengguna dapat mengambil foto tahap penyelesaian.
+	Tombol "Selesaikan Tugas"
+	Klik / Tap
+	Memunculkan modal konfirmasi untuk mengirim foto akhir beserta laporannya. Jika dikonfirmasi, sistem merubah status tugas menjadi selesai.
+	________________
+BAB 7
+MATRIKS KEBUTUHAN
+
+
+
+
+Bab ini menyediakan referensi silang (cross-reference) yang melacak setiap komponen desain dan struktur data kembali ke kebutuhan fungsional dan non-fungsional yang telah didefinisikan dalam dokumen Software Requirements Specification (SRS). Matriks ini berfungsi untuk menjamin bahwa seluruh spesifikasi kebutuhan telah diakomodasi dalam desain sistem.
+
+
+
+
+Kode Kebutuhan (SRS)
+	Deskripsi Kebutuhan
+	Ref. Struktur Data (Bab 4 SDD)
+	Ref. Algoritma (Bab 5 SDD)
+	Ref. Antarmuka (Bab 6 SDD) / Lainnya
+	FR-AKN-01 s.d. 15
+	Manajemen Akun, Registrasi, OTP, dan Autentikasi.
+	users, user_profiles, otp_verifications
+	Pseudocode 1.0
+	Bab 6.1
+	FR-WRG-01 s.d. 23
+	Pengelolaan Laporan Warga, Geotagging, dan Riwayat Aduan.
+	reports, report_categories, report_revisions
+	Pseudocode 2.0
+	Bab 6.2.A & 6.3.A
+	FR-ADM-01 s.d. 18
+	Validasi Laporan, Merge Ticket, dan Manajemen Wilayah.
+	regions, validation_decisions, merge_records
+	Pseudocode 3.0
+	Bab 6.2.B & 6.3.B
+	FR-DSP-01 s.d. 06
+	Disposisi Laporan dari Pusat ke Dinas Terkait.
+	agencies, dispositions
+	Pseudocode 3.0
+	Bab 6.2.B & 6.3.B
+	FR-SLA-01 s.d. 03
+	Penghitungan dan Pemantauan Batas Waktu (SLA).
+	sla_records, sla_pause_logs
+	Pseudocode 5.3 & automatedSLAChecker
+	Bab 6.2.B (SLA Timer)
+	FR-PTG-01 s.d. 09
+	Manajemen Absensi dan Sesi Kerja Petugas Lapangan.
+	officer_attendance
+	Pseudocode 4.1
+	Bab 6.2.C & 6.3.C
+	FR-PTG-10 s.d. 26
+	Eksekusi Tugas, Geofencing, Foto Bukti, dan Logistik.
+	field_tasks, task_evidence
+	Pseudocode 4.2
+	Bab 6.2.C & 6.3.C
+	FR-PTG-27 s.d. 33
+	Pengajuan Penundaan Tugas (Kendala Lapangan).
+	task_postponements
+	Pseudocode 4.2 & processTaskPostponement
+	Bab 6.2.C & 6.3.C
+	FR-RSL-01 s.d. 22
+	Konfirmasi Warga, Notifikasi, dan Resolusi Sengketa.
+	confirmation_requests, dispute_records, notifications
+	Pseudocode 5.4 (processDispute)
+	Bab 6.2.A & 6.3.A
+	EIR-UI-01 s.d. 04
+	Kebutuhan Antarmuka Pengguna, Visual, & Kontras Warna.
+	-
+	-
+	Bab 6.1, 6.2, 6.3
+	EIR-HW, SW, COM
+	Integrasi API Lokasi, HTTPS, OTP, Email, JSON.
+	-
+	Pseudocode 1.0 & 2.0
+	Bab 3.1 (Arsitektur Sistem)
+	NFR-PER & REL
+	Kinerja Respons & Keandalan (Toleransi Kesalahan).
+	Algoritma Sorting & Hash Table
+	-
+	Bab 3.3 (Rasionalisasi Desain)
+	NFR-USA-01 s.d. 05
+	Kenyamanan Penggunaan, Bantuan, & Indikator Keterlambatan.
+	-
+	-
+	Bab 6.2 & 6.3
+	NFR-SEC-01 s.d. 06
+	Keamanan Data, Pembatasan Login, dan Enkripsi.
+	login_attempts, active_sessions
+	Pseudocode 1.0 (Hash/Verify)
+	-
+	NFR-INT-01 s.d. 05
+	Integritas Data, Geofencing, & Validasi Server-Side.
+	Seluruh Tabel (Validasi Tipe Data)
+	Pseudocode 4.2 (Geofencing)
+	-
+	NFR-AUD-01 s.d. 04
+	Rekam Jejak Digital (Audit Logs) dan Immutable Storage.
+	audit_logs
+	Tersemat pada seluruh fungsi
+	-
+	NFR-MNT & LEG
+	Pemeliharaan (Clean Code) & Kepatuhan Hukum.
+	-
+	-
+	Bab 3.3 (Rasionalisasi Desain)
+	________________
+BAB 8
+LAMPIRAN
+
+
+
+
+Lampiran Foto Dokumentasi:
+
+
+  
+
+Figure 10. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[a]Untuk Desain Basis Data nanti dibuat ERD nya
+[b]Buat setiap nama table dan gak usah dulu buat penomorannya nanti aja setelah semua buat table kamus data nya
+[c]Akief
+[d]Toval
+[e]_Marked as resolved_
+[f]_Re-opened_
+[g]tein

@@ -246,7 +246,7 @@ public class WargaController {
             map.put("location", r.getLocationHint());
             map.put("date", r.getSubmittedAt().toLocalDate());
             map.put("submittedAt", r.getSubmittedAt() != null ? r.getSubmittedAt().format(ControllerHelper.DATETIME_FMT) : "-");
-            // FR-WRG-06: updatedAt untuk metadata kronologis
+            // updatedAt untuk metadata kronologis
             map.put("updatedAt", r.getUpdatedAt() != null ? r.getUpdatedAt().format(ControllerHelper.DATETIME_FMT) : "-");
             map.put("description", r.getDescription());
             map.put("landmark", r.getLocationHint());
@@ -481,7 +481,7 @@ public class WargaController {
         };
         reportMap.put("statusColor", cc);
 
-        // FR-RSL-07: Cek apakah konfirmasi sudah dikunci (one-time logic)
+        // Cek apakah konfirmasi sudah dikunci (one-time logic)
         boolean confirmationIsLocked = false;
         boolean hasPendingConfirmation = false;
         String confirmationDeadlineIso = null;
@@ -501,7 +501,7 @@ public class WargaController {
         model.addAttribute("hasPendingConfirmation", hasPendingConfirmation);
         model.addAttribute("confirmationDeadlineIso", confirmationDeadlineIso);
 
-        // FR-RSL-11: Cek apakah sengketa sudah pernah diajukan (maks 1x)
+        // Cek apakah sengketa sudah pernah diajukan (maks 1x)
         boolean existingDispute = false;
         try {
             existingDispute = disputeService.getDisputes(report.getReportId()).stream()
@@ -511,7 +511,7 @@ public class WargaController {
         }
         model.addAttribute("existingDispute", existingDispute);
 
-        // FR-RSL-08: Status final = read-only
+        // Status final = read-only
         boolean isFinalStatus = report.getStatus() == ReportStatus.SELESAI
                 || report.getStatus() == ReportStatus.SELESAI_OTOMATIS
                 || report.getStatus() == ReportStatus.DITOLAK;
@@ -601,7 +601,7 @@ public class WargaController {
         String userId = ControllerHelper.requireRole(session, "WARGA");
         if (userId == null) return "redirect:/warga/login";
         try {
-            // FR-RSL-03: Validasi bahwa warga yang konfirmasi adalah pembuat laporan
+            // Validasi bahwa warga yang konfirmasi adalah pembuat laporan
             Report report = reportService.findById(reportId).orElse(null);
             if (report == null) {
                 redirectAttributes.addFlashAttribute("error", "Laporan tidak ditemukan.");
@@ -611,8 +611,8 @@ public class WargaController {
                 redirectAttributes.addFlashAttribute("error", "Anda tidak berwenang mengkonfirmasi laporan ini.");
                 return "redirect:/warga/report-detail?id=" + reportId;
             }
-            // FR-RSL-07: Cek apakah konfirmasi sudah dikunci (sudah pernah merespons)
-            // FR-RSL-11: Jika sudah pernah sengketa, bypass locked check — konfirmasi tetap boleh
+            // Cek apakah konfirmasi sudah dikunci (sudah pernah merespons)
+            // Jika sudah pernah sengketa, bypass locked check — konfirmasi tetap boleh
             boolean hasExistingDispute = disputeService.getDisputes(reportId).stream().findAny().isPresent();
             java.util.Optional<ConfirmationRequest> confOpt = confirmationService.getByReportId(reportId);
             if (!hasExistingDispute && confOpt.isPresent() && Boolean.TRUE.equals(confOpt.get().getIsLocked())) {
@@ -710,7 +710,7 @@ public class WargaController {
         try {
             Report report = reportService.findById(reportId)
                 .orElseThrow(() -> new RuntimeException("Laporan tidak ditemukan"));
-            // Validasi: hanya bisa revisi jika status MENUNGGU_REVISI (FR-WRG-18)
+            // Validasi: hanya bisa revisi jika status MENUNGGU_REVISI
             if (report.getStatus() != ReportStatus.MENUNGGU_REVISI) {
                 redirectAttributes.addFlashAttribute("error", "Revisi hanya dapat dilakukan saat laporan berstatus 'Perlu Revisi'.");
                 return "redirect:/warga/report-detail?id=" + reportId;
@@ -744,7 +744,7 @@ public class WargaController {
             if (anyUpdate) {
                 reportRepository.save(report);
             }
-            // FR-WRG-19: Ubah status kembali ke menunggu validasi setelah revisi (edit dikunci)
+            // Ubah status kembali ke menunggu validasi setelah revisi (edit dikunci)
             reportService.updateStatus(reportId, ReportStatus.MENUNGGU_VERIFIKASI, "Revisi dikirim oleh warga", userId);
             redirectAttributes.addFlashAttribute("success", "Revisi laporan berhasil dikirim. Admin akan meninjau kembali.");
         } catch (Exception e) {
@@ -755,7 +755,7 @@ public class WargaController {
     }
 
     // ==========================================
-    // POST /warga/withdraw-report — FR-WRG-23: Batalkan laporan
+    // POST /warga/withdraw-report — Batalkan laporan
     // ==========================================
     @PostMapping("/warga/withdraw-report")
     public String withdrawReport(
@@ -768,12 +768,12 @@ public class WargaController {
         try {
             Report report = reportService.findById(reportId)
                 .orElseThrow(() -> new RuntimeException("Laporan tidak ditemukan"));
-            // FR-WRG-23: Pembatalan hanya boleh saat MENUNGGU_VERIFIKASI
+            // Pembatalan hanya boleh saat MENUNGGU_VERIFIKASI
             if (report.getStatus() != ReportStatus.MENUNGGU_VERIFIKASI) {
                 redirectAttributes.addFlashAttribute("error", "Laporan hanya dapat dibatalkan saat masih dalam antrian verifikasi.");
                 return "redirect:/warga/report-detail?id=" + reportId;
             }
-            // FR-RSL-03 style: Pastikan hanya pembuat yang bisa membatalkan
+            //  style: Pastikan hanya pembuat yang bisa membatalkan
             if (report.getReporter() == null || !report.getReporter().getUserId().equals(userId)) {
                 redirectAttributes.addFlashAttribute("error", "Anda tidak berwenang membatalkan laporan ini.");
                 return "redirect:/warga/report-detail?id=" + reportId;

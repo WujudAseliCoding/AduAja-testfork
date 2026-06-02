@@ -13,7 +13,7 @@ import java.util.Base64;
 /**
  * PhotoWatermarkUtil — Menambahkan watermark informatif pada foto bukti kerja.
  *
- * Sesuai FR-PTG-21: Foto harus disegel dengan:
+ * Sesuai Foto harus disegel dengan:
  *  - ID Tiket laporan
  *  - Timestamp server (waktu pengambilan foto versi server)
  *  - Koordinat GPS petugas saat mengambil foto

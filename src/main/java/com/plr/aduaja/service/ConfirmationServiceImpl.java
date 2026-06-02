@@ -35,7 +35,7 @@ public class ConfirmationServiceImpl implements ConfirmationService {
     @Autowired
     private UserRepository userRepository;
 
-    // FR-RSL-18: Notifikasi ke warga saat Selesai Otomatis
+    // Notifikasi ke warga saat Selesai Otomatis
     @Autowired
     private NotificationService notificationService;
 
@@ -83,7 +83,7 @@ public class ConfirmationServiceImpl implements ConfirmationService {
         if (mergeParent != null) {
             // --- MERGE GROUP LOGIC ---
             if (response == ResponseType.TOLAK) {
-                // FR-ADM-17: Satu TOLAK dari warga mana pun → parent DALAM_EVALUASI_SENGKETA
+                // Satu TOLAK dari warga mana pun → parent DALAM_EVALUASI_SENGKETA
                 setParentStatus(mergeParent, Report.ReportStatus.DALAM_EVALUASI_SENGKETA,
                     "Warga menolak hasil tugas (merge group)", "WARGA");
             } else if (response == ResponseType.TERIMA || response == ResponseType.TIMEOUT) {
@@ -153,7 +153,7 @@ public class ConfirmationServiceImpl implements ConfirmationService {
             // Cek apakah report ini bagian dari merge group
             Report mergeParent = findMergeParent(report);
             if (mergeParent != null) {
-                // FR-ADM-17: Timeout pada merge group — cek apakah semua sudah selesai
+                // Timeout pada merge group — cek apakah semua sudah selesai
                 if (allConfirmationsResolved(mergeParent)) {
                     if (anyConfirmationRejected(mergeParent)) {
                         setParentStatus(mergeParent, Report.ReportStatus.DALAM_EVALUASI_SENGKETA,
@@ -173,7 +173,7 @@ public class ConfirmationServiceImpl implements ConfirmationService {
                     "Batas waktu konfirmasi 3x24 jam habis, laporan ditutup otomatis", "SYSTEM");
             }
 
-            // FR-RSL-18: Kirim notifikasi ke warga saat timeout
+            // Kirim notifikasi ke warga saat timeout
             try {
                 String wargaId = report.getReporter() != null ? report.getReporter().getUserId() : null;
                 String ticketNum = report.getTicketNumber() != null ? report.getTicketNumber() : report.getReportId();

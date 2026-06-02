@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
 public class PetugasController {
 
     // ============================================================
-    // Konfigurasi geofencing check-in (FR-PTG-08)
+    // Konfigurasi geofencing check-in
     // Pusat koordinat default wilayah kerja — dapat disesuaikan per dinas.
     // Saat ini menggunakan koordinat pusat kota sebagai fallback umum.
     // ============================================================
@@ -216,7 +216,7 @@ public class PetugasController {
 
         try {
             if (checkIn != null && checkIn) {
-                // FIX-4: FR-PTG-08 — Validasi geofencing di backend sebelum check-in
+                // FIX-4:  — Validasi geofencing di backend sebelum check-in
                 try {
                     double centerLat = DINAS_CENTER_LAT;
                     double centerLon = DINAS_CENTER_LON;
@@ -283,7 +283,7 @@ public class PetugasController {
                     case "start" -> {
                         log.info("Petugas {} memulai tugas {}", userId, id);
                         try {
-                            // FIX-5: FR-PTG-18 — Validasi jarak petugas ke lokasi tugas
+                            // FIX-5:  — Validasi jarak petugas ke lokasi tugas
                             fieldTaskService.startTask(id, latitude, longitude);
                         } catch (IllegalStateException distEx) {
                             log.warn("Validasi jarak gagal untuk tugas {}: {}", id, distEx.getMessage());
@@ -293,7 +293,7 @@ public class PetugasController {
                     }
                     case "complete" -> fieldTaskService.completeTask(id);
                     case "postpone" -> {
-                        // FIX-8: FR-PTG-27 — Ajukan penundaan, TIDAK langsung TERTUNDA
+                        // FIX-8:  — Ajukan penundaan, TIDAK langsung TERTUNDA
                         String catReason = description != null && !description.isBlank() ? description : "Ditunda oleh petugas";
                         String notes = additionalNotes != null ? additionalNotes.trim() : "";
                         String reason = notes.isEmpty() ? catReason : catReason + " — " + notes;
@@ -496,7 +496,7 @@ public class PetugasController {
             }
         }
 
-        // FIX-8: FR-PTG-10 — Algoritma Sorting Cerdas (SLA + GPS Proximity)
+        // FIX-8:  — Algoritma Sorting Cerdas (SLA + GPS Proximity)
         java.util.Comparator<Map<String, Object>> scoreComparator = (m1, m2) -> {
             long sla1 = ((Number) m1.getOrDefault("rawSlaRemaining", 999L)).longValue();
             double dist1 = ((Number) m1.getOrDefault("rawDistance", 999.0)).doubleValue();
@@ -1019,7 +1019,7 @@ public class PetugasController {
             ? task.getReport().getSubmittedAt().format(ControllerHelper.DATE_FMT) : "-");
         m.put("rawReportDate", task.getReport() != null && task.getReport().getSubmittedAt() != null
             ? task.getReport().getSubmittedAt().atZone(java.time.ZoneId.systemDefault()).toEpochSecond() : 0L);
-        // FR-PTG-17: flag koreksi koordinat agar UI modal bisa tampilkan status 1x
+        // flag koreksi koordinat agar UI modal bisa tampilkan status 1x
         m.put("coordinateCorrected", task.getReport() != null && task.getReport().isCoordinateCorrected());
         // Laporan Warga Evidence
         m.put("photoBase64", task.getReport() != null ? task.getReport().getPhotoBase64() : null);
@@ -1092,7 +1092,7 @@ public class PetugasController {
     }
 
     // ==========================================
-    // POST /petugas/coordinate-correction — FR-PTG-17
+    // POST /petugas/coordinate-correction — 
     // ==========================================
     @PostMapping("/petugas/coordinate-correction")
     public String petugasCoordinateCorrection(
@@ -1165,7 +1165,7 @@ public class PetugasController {
                 auditLogRepository.save(auditLog);
             });
 
-            log.info("[FR-PTG-17] Petugas {} koreksi koordinat laporan {} dari {} ke {}",
+            log.info("Petugas {} koreksi koordinat laporan {} dari {} ke {}",
                 userId, report.getReportId(), oldCoords, newCoords);
 
             redirectAttributes.addFlashAttribute("successMsg",

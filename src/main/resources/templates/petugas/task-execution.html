@@ -267,9 +267,9 @@
         </div>
       </div>
 
-      <!-- FR-WRG-09: Bottom Controls — Gallery DISABLED, hanya kamera langsung -->
+      <!-- Bottom Controls — Gallery DISABLED, hanya kamera langsung -->
       <div class="flex items-center justify-around px-8 py-6 bg-black/60 backdrop-blur-sm relative z-10">
-        <!-- Tombol galeri dinonaktifkan sesuai FR-WRG-09 (hanya foto langsung dari kamera) -->
+        <!-- Tombol galeri dinonaktifkan sesuai  (hanya foto langsung dari kamera) -->
         <div class="w-12 h-12 rounded-xl bg-black/20 flex items-center justify-center text-white/30 border border-white/10 cursor-not-allowed" title="Galeri dinonaktifkan - gunakan kamera langsung">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="M21 15l-5-5L5 21"></path><line x1="4" y1="4" x2="20" y2="20" stroke="red" stroke-width="2"></line></svg>
         </div>
@@ -282,7 +282,7 @@
         <div class="w-12 h-12"></div>
       </div>
 
-      <!-- Informasi FR-WRG-09: Banner keamanan foto kamera -->
+      <!-- Informasi Banner keamanan foto kamera -->
       <div class="px-4 py-2 bg-black/80 text-center">
         <p class="text-xs text-yellow-400">🔒 Foto hanya dari kamera langsung — galeri dinonaktifkan untuk keamanan bukti</p>
       </div>
@@ -463,7 +463,7 @@
         document.getElementById('camRetakeBtn').addEventListener('click', retakePhoto)
         document.getElementById('camConfirmBtn').addEventListener('click', confirmPhoto)
         document.getElementById('camSwitchBtn').addEventListener('click', switchCamera)
-        // FR-WRG-09: camGalleryBtn dihapus — galeri tidak tersedia, hanya kamera langsung
+        // camGalleryBtn dihapus — galeri tidak tersedia, hanya kamera langsung
 
         document.getElementById('camGridBtn').addEventListener('click', function() {
           camState.grid = !camState.grid

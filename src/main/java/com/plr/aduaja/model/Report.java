@@ -75,7 +75,7 @@ public class Report extends BaseEntity {  // ← INHERITANCE sejati
     @Column(name = "submitted_at")
     private LocalDateTime submittedAt = LocalDateTime.now();
 
-    // FR-PTG-17: Flag untuk mencegah koreksi koordinat lebih dari 1 kali
+    // Flag untuk mencegah koreksi koordinat lebih dari 1 kali
     @Column(name = "coordinate_corrected", nullable = false, columnDefinition = "boolean default false")
     private boolean coordinateCorrected = false;
 

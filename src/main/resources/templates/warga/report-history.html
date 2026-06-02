@@ -116,7 +116,7 @@
                 <span>&bull;</span>
                 <span th:text="${report.location}">Lokasi</span>
                 <span>&bull;</span>
-                <!-- FR-WRG-06: Metadata kronologis (dibuat & diperbarui) -->
+                <!-- Metadata kronologis (dibuat & diperbarui) -->
                 <span class="flex items-center gap-1">
                   <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                   Dibuat: <span th:text="${#temporals.format(report.date, 'd MMM yyyy')}">Tanggal</span>

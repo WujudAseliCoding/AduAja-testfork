@@ -146,19 +146,19 @@ public class FieldTaskServiceImpl implements FieldTaskService {
             log.warn("Gagal update status laporan ke DITUGASKAN: {}", e.getMessage());
         }
 
-        // FR-PRS-03: Validasi wilayah tugas petugas vs lokasi laporan
+        // Validasi wilayah tugas petugas vs lokasi laporan
         try {
             UserProfile profile = userProfileRepository.findByUserUserId(officerId).orElse(null);
             if (profile != null && profile.getWilayahTugas() != null && report.getLocationHint() != null) {
                 String wilayahPetugas = profile.getWilayahTugas().getRegionName().toLowerCase();
                 String lokasiLaporan = report.getLocationHint().toLowerCase();
                 if (!lokasiLaporan.contains(wilayahPetugas) && !wilayahPetugas.contains(lokasiLaporan)) {
-                    log.warn("FR-PRS-03: Wilayah tugas petugas '{}' tidak sesuai dengan lokasi laporan '{}'",
+                    log.warn("Wilayah tugas petugas '{}' tidak sesuai dengan lokasi laporan '{}'",
                             profile.getWilayahTugas().getRegionName(), report.getLocationHint());
                 }
             }
         } catch (Exception e) {
-            log.warn("FR-PRS-03: Gagal validasi wilayah: {}", e.getMessage());
+            log.warn("Gagal validasi wilayah: {}", e.getMessage());
         }
 
         try {
@@ -178,7 +178,7 @@ public class FieldTaskServiceImpl implements FieldTaskService {
         FieldTask task = fieldTaskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("Task not found"));
 
-        // FR-PTG-18: Validasi jarak petugas ke lokasi laporan sebelum mulai
+        // Validasi jarak petugas ke lokasi laporan sebelum mulai
         // Radius toleransi: 10 km (dapat dikonfigurasi). Jika koordinat tidak ada,
         // tetap izinkan (fallback graceful agar tidak block petugas tanpa GPS).
         if (latitude != null && longitude != null && task.getReport() != null) {
@@ -187,9 +187,7 @@ public class FieldTaskServiceImpl implements FieldTaskService {
                 double distKm = GeoUtils.haversineKm(latitude, longitude,
                         report.getLatitude(), report.getLongitude());
                         
-                boolean isDummyAccount = task.getOfficer() != null && 
-                    (task.getOfficer().getEmail().equalsIgnoreCase("ahmad.fauzi@aduaja.go.id") || 
-                     task.getOfficer().getEmail().equalsIgnoreCase("rizal.harahap@aduaja.go.id"));
+                boolean isDummyAccount = task.getOfficer() != null && task.getOfficer().getEmail().endsWith("@aduaja.go.id");
                      
                 if (distKm > 10.0 && !isDummyAccount) {
                     throw new IllegalStateException(
@@ -264,7 +262,7 @@ public class FieldTaskServiceImpl implements FieldTaskService {
                 confirmationRequestRepository.save(confirmation);
             }
 
-            // FR-ADM-16: Jika parent memiliki child tiket (merge group),
+            // Jika parent memiliki child tiket (merge group),
             // buat ConfirmationRequest untuk setiap child reporter juga
             List<Report> childReports = mergeRecordService.getAllChildReportsForParent(report.getReportId());
             for (Report child : childReports) {
@@ -335,7 +333,7 @@ public class FieldTaskServiceImpl implements FieldTaskService {
 
     @Override
     public TaskPostponement requestPostpone(String taskId, String reason, String requestedById, LocalDateTime estimatedResumeAt) {
-        // FR-PTG-27: Petugas ajukan penundaan — status tugas TIDAK langsung berubah.
+        // Petugas ajukan penundaan — status tugas TIDAK langsung berubah.
         // TaskPostponement disimpan dengan ApprovalStatus.MENUNGGU.
         // Admin harus approve di dashboard admin agar tugas menjadi TERTUNDA.
         FieldTask task = fieldTaskRepository.findById(taskId)
@@ -520,7 +518,7 @@ public class FieldTaskServiceImpl implements FieldTaskService {
         FieldTask task = fieldTaskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("Task not found"));
 
-        // FR-PTG-21: Tambahkan watermark pada foto bukti
+        // Tambahkan watermark pada foto bukti
         // Watermark berisi: ID tiket laporan, nama petugas, koordinat GPS officer, timestamp server
         String ticketNumber = task.getReport() != null ? task.getReport().getTicketNumber() : taskId.substring(0, 8);
         String officerName  = task.getOfficer() != null ? task.getOfficer().getFullName() : "Petugas";
