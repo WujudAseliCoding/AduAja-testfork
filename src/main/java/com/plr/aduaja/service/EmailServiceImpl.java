@@ -1,24 +1,26 @@
 package com.plr.aduaja.service;
 
 import com.plr.aduaja.model.OtpVerification;
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.http.*;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Service
 public class EmailServiceImpl implements EmailService {
 
     private static final Logger log = LoggerFactory.getLogger(EmailServiceImpl.class);
 
-    @Autowired
-    private JavaMailSender mailSender;
+    // KUNCI API BREVO DITAMBAHKAN DI SINI
+    @Value("${brevo.api.key}")
+    private String brevoApiKey;
 
     @Value("${spring.mail.from}")
     private String fromEmail;
@@ -52,25 +54,42 @@ public class EmailServiceImpl implements EmailService {
         sendEmail(to, subject, html);
     }
 
+    // FUNGSI INI DIROMBAK UNTUK MENGGUNAKAN BREVO HTTP API (ANTI BLOKIR HF)
     @Async("taskExecutor")
     @Override
     public void sendEmail(String to, String subject, String htmlBody) {
         try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            RestTemplate restTemplate = new RestTemplate();
+            String url = "https://api.brevo.com/v3/smtp/email";
 
-            helper.setFrom(fromEmail);
-            helper.setTo(to);
-            helper.setSubject(subject);
-            helper.setText(htmlBody, true);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+            headers.set("api-key", brevoApiKey);
 
-            mailSender.send(message);
-            log.info("Email berhasil dikirim ke {}", to);
-        } catch (MessagingException e) {
-            log.error("Gagal mengirim email ke {}: {}", to, e.getMessage(), e);
+            Map<String, Object> senderInfo = new HashMap<>();
+            senderInfo.put("name", "Sistem AduAja");
+            senderInfo.put("email", fromEmail);
+
+            Map<String, String> recipientInfo = new HashMap<>();
+            recipientInfo.put("email", to);
+
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("sender", senderInfo);
+            requestBody.put("to", List.of(recipientInfo));
+            requestBody.put("subject", subject);
+            requestBody.put("htmlContent", htmlBody);
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+            restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+            log.info("Email OTP via Brevo API berhasil dikirim ke {}", to);
+        } catch (Exception e) {
+            log.error("Gagal mengirim email via Brevo API ke {}: {}", to, e.getMessage(), e);
         }
     }
 
+    // TEMPLATE HTML ASLI MILIK ANDA TETAP DIPERTAHANKAN
     private String buildOtpEmailHtml(String otpCode, String purpose, String icon) {
         return """
             <!DOCTYPE html>
